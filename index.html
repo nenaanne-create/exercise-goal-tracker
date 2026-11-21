@@ -205,6 +205,7 @@ table.t tr.me td { background: var(--soft); }
 .act[aria-pressed="true"] { text-shadow: 0 0 2px rgba(0,0,0,.55); }
 .sw { width: 30px; height: 30px; border-radius: 50%; border: 2px solid transparent; }
 .sw[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--ink); }
+.apptag { display: inline-block; margin-left: 6px; font-size: 10px; font-weight: 700; letter-spacing: .03em; color: #fff; background: #d0021b; border-radius: 3px; padding: 0 5px; vertical-align: 2px; }
 .pnum { width: 74px; border: 1px solid var(--line); background: var(--bg); border-radius: 5px; padding: 3px 4px; font-size: 13px; text-align: right; }
 .pdate { border: 1px solid var(--line); background: var(--bg); border-radius: 5px; padding: 3px 4px; font-size: 13px; }
 .dup.warnt { color: var(--a-run); }
@@ -469,7 +470,8 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
     if (km != null && unit === "mi") km = Math.round(km * 1.609344 * 100) / 100;
     let min = null;
     if (durText) { const p = durText.split(":").map(Number); min = p.length === 3 ? p[0] * 60 + p[1] + p[2] / 60 : p[0] + p[1] / 60; min = Math.round(min * 10) / 10; }
-    return { activity, km, unit, durText, min, date, days_ago, found: km != null || min != null };
+    const app = /map\s*my/i.test(all) ? "MapMy" : /strava/i.test(all) ? "Strava" : /garmin/i.test(all) ? "Garmin" : "";
+    return { activity, km, unit, durText, min, date, days_ago, app, found: km != null || min != null };
   }
   root.ET = { parseShotText, ACTIVITIES, ymd, parseYmd, addDays, isYmd, weekStart, monthStart, periodRange, parseDuration, fmtDuration, fmtKm, pace, mapActivity, parseDateLoose, parseCSV, parseWorkoutCSV, summariseTrack, haversine, streaks };
 })(typeof window !== "undefined" ? window : globalThis);
@@ -596,7 +598,7 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
     const cond = CONDS.some(c => c.k === d.cond) ? d.cond : "calm";
     const mult = typeof d.mult === "number" && d.mult >= 0.1 && d.mult <= 5 ? d.mult : 1;
     return { date: isYmd(d.date) ? d.date : null, activity: cleanTypeName(d.activity) || "Other", km, min, cond, mult,
-      notes: typeof d.notes === "string" ? d.notes.slice(0, 500) : "", source: d.source === "import" ? "import" : "manual", createdAt: typeof d.createdAt === "number" ? d.createdAt : 0 };
+      notes: typeof d.notes === "string" ? d.notes.slice(0, 500) : "", app: typeof d.app === "string" ? d.app.slice(0, 20) : "", source: d.source === "import" ? "import" : "manual", createdAt: typeof d.createdAt === "number" ? d.createdAt : 0 };
   }
   // ----- weighting -----
   const DEFAULT_WEIGHTS = { Ride: 0.4, Paddle: 0.7, Run: 1, Walk: 0.7, Swim: 3, Gym: 0, Other: 0.5 };
@@ -880,7 +882,7 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
     const row = h("div", { class: "row" }, input,
       h("button", { class: "btn", type: "button", disabled: busy, onclick: () => input.click() }, busy ? "Reading screenshot…" : "Fill from screenshot"),
       busy ? h("button", { class: "btn ghost sm", type: "button", onclick: () => { ui.shotCtl && ui.shotCtl.abort(); } }, "Stop")
-        : h("span", { class: "hint" }, window.STANDALONE ? "Reads a MapMy (or similar) screenshot on your phone and fills in the form. Check the numbers before saving." : "A MapMy (or similar) workout screenshot fills in the form for you to check"));
+        : h("span", { class: "hint" }, window.STANDALONE ? "Reads a MapMyRide, MapMyRun or MapMyWalk (or similar) screenshot on your phone and fills in the form. Check the numbers before saving." : "A MapMy (or similar) workout screenshot fills in the form for you to check"));
     return row;
   }
   function minutesToForm(min) { if (min == null) return ""; const t = Math.round(min); return t >= 60 ? `${Math.floor(t / 60)}.${String(t % 60).padStart(2, "0")}` : String(t); }
@@ -927,7 +929,7 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
     if (date) dateNote = `Date: ${fmtDay(date)}.`;
     else if (r.days_ago != null && r.days_ago < 400) { date = addDays(t, -r.days_ago); dateGuessed = true; dateNote = r.days_ago === 0 ? `Today, ${fmtDay(date)}.` : `"${r.days_ago} day${r.days_ago === 1 ? "" : "s"} ago" → ${fmtDay(date)}. Check the date.`; }
     else { date = t; dateGuessed = true; dateNote = "No date was found, so it's set to today. Change it if needed."; }
-    return { date, activity: resolveType(r.activity), km: r.km, min: r.min, notes: "", raw: r.activity.slice(0, 60), durText: r.durText, dateNote, dateGuessed, person: null, otherPerson: false, checkAll: true };
+    return { app: r.app, date, activity: resolveType(r.activity), km: r.km, min: r.min, notes: "", raw: r.activity.slice(0, 60), durText: r.durText, dateNote, dateGuessed, person: null, otherPerson: false, checkAll: true };
   }
   async function readShotData(file, signal, onStatus) {
     if (window.STANDALONE) return readShotDataLocal(file, signal, onStatus);
@@ -968,7 +970,7 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
       const r = await readShotData(file, ui.shotCtl.signal, (m) => { ui.shot = { busy: true, msg: m }; render(); });
       if (!r) { ui.shot = { msg: window.STANDALONE ? "Couldn't find a distance or time in that screenshot. Try a clearer screenshot, or enter it by hand." : "That doesn't look like a workout screenshot. Try another image.", warn: true }; render(); return; }
       const f = ui.form || newForm();
-      ui.form = { ...f, date: r.date, activity: r.activity, km: r.km != null ? String(r.km) : f.km, dur: r.min != null ? minutesToForm(r.min) : f.dur, notes: r.notes && !f.notes ? r.notes : f.notes, cond: "calm", mult: "" };
+      ui.form = { ...f, app: r.app || "", date: r.date, activity: r.activity, km: r.km != null ? String(r.km) : f.km, dur: r.min != null ? minutesToForm(r.min) : f.dur, notes: r.notes && !f.notes ? r.notes : f.notes, cond: "calm", mult: "" };
       const read = [r.raw || r.activity, r.km != null ? `${r.km} km` : null, r.durText || (r.min != null ? fmtDuration(r.min) : null)].filter(Boolean).join(", ");
       ui.shot = { msg: `Read: ${read || "workout"}. ${r.dateNote}${r.otherPerson ? ` The screenshot shows ${r.person}: only save it if this session is yours.` : ""} Check everything, add conditions, then tap Add session.`, warn: r.otherPerson };
       render();
@@ -1034,7 +1036,7 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
         const mult = f.cond === "custom" ? parseFloat(f.mult) : 1;
         if (f.cond === "custom" && !(mult >= 0.1 && mult <= 5)) { err.textContent = "Custom multiplier should be between 0.1 and 5."; return; }
         const prev = ui.editId ? mine().get(ui.editId) : null;
-        const body = { date: f.date, activity: f.activity, km: km || null, min: min || null, cond: f.cond, mult, notes: f.notes.trim().slice(0, 500), source: prev ? prev.source : "manual", createdAt: prev ? prev.createdAt : Date.now() };
+        const body = { date: f.date, activity: f.activity, km: km || null, min: min || null, cond: f.cond, mult, notes: f.notes.trim().slice(0, 500), app: f.app || (prev ? prev.app : "") || "", source: prev ? prev.source : "manual", createdAt: prev ? prev.createdAt : Date.now() };
         const already = findLogged(body, ui.editId);
         const sig = JSON.stringify([body.date, body.activity, body.km, body.min]);
         if (already && ui.formDupOk !== sig) {
@@ -1080,7 +1082,7 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
           items.map(([id, s]) => h("button", { class: "entry", type: "button", style: `--ac:${acol(s.activity)}`, disabled: !canWrite, "aria-label": `Edit ${s.activity} on ${fmtDay(d)}`,
             onclick: () => { ui.editId = id; ui.form = { date: s.date, activity: s.activity, km: s.km != null ? String(s.km) : "", dur: s.min != null ? (s.min >= 60 ? `${Math.floor(Math.round(s.min) / 60)}.${String(Math.round(s.min) % 60).padStart(2, "0")}` : String(Math.round(s.min))) : "", notes: s.notes, cond: s.cond, mult: s.cond === "custom" ? String(s.mult) : "" }; render(); window.scrollTo({ top: 0, behavior: "smooth" }); } },
             h("span", { class: "dot" }),
-            h("span", { style: "min-width:0" }, h("div", { class: "name" }, s.activity, condLabel(s) ? h("span", { class: "cond" }, condLabel(s)) : null), s.notes ? h("div", { class: "note" }, s.notes) : null),
+            h("span", { style: "min-width:0" }, h("div", { class: "name" }, s.activity, s.app ? h("span", { class: "apptag" }, s.app) : null, condLabel(s) ? h("span", { class: "cond" }, condLabel(s)) : null), s.notes ? h("div", { class: "note" }, s.notes) : null),
             h("span", { class: "nums" }, h("div", null, s.km != null ? `${fmtKm(s.km)} km` : "", s.km != null && s.min != null ? " · " : "", s.min != null ? fmtDuration(s.min) : ""), h("div", { class: "p" }, pace(s.activity, s.km, s.min)))))));
       }
       if (days.length > ui.showDays) card.append(h("button", { class: "btn", type: "button", onclick: () => { ui.showDays += 30; render(); } }, `Show older days (${days.length - ui.showDays} more)`));
@@ -1483,7 +1485,7 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
             r.batchDup ? h("div", { class: "dupmsg" }, "⚠ Repeats a row above") : null,
             r.fromShot && r.dateGuessed ? h("div", { class: "dup warnt" }, r.dateHint || "Check the date") : null,
             r.otherPerson ? h("div", { class: "dup warnt" }, `Shows ${r.person}`) : null),
-          h("td", { style: "text-align:left" }, h("select", { "aria-label": "Activity", onchange: (e) => { r.activity = e.target.value; const was = r.dup || r.batchDup; markDups(rows, true); if (!was && (r.dup || r.batchDup)) r.pick = false; render(); } }, ACTIVITIES.map(a => h("option", { value: a, selected: a === r.activity }, a))), r.raw && r.raw.toLowerCase() !== r.activity.toLowerCase() ? h("div", { class: "dup" }, r.raw) : null),
+          h("td", { style: "text-align:left" }, h("select", { "aria-label": "Activity", onchange: (e) => { r.activity = e.target.value; const was = r.dup || r.batchDup; markDups(rows, true); if (!was && (r.dup || r.batchDup)) r.pick = false; render(); } }, ACTIVITIES.map(a => h("option", { value: a, selected: a === r.activity }, a))), r.raw && r.raw.toLowerCase() !== r.activity.toLowerCase() ? h("div", { class: "dup" }, r.raw) : null, r.app ? h("span", { class: "apptag" }, r.app) : null),
           r.fromShot ? h("td", null, h("input", { type: "number", class: "pnum", inputmode: "decimal", min: "0", step: "0.01", value: r.km != null ? String(r.km) : "", "aria-label": "Distance km",
               onchange: (e) => { const v = parseFloat(e.target.value); r.km = isFinite(v) && v > 0 ? Math.round(v * 100) / 100 : null; markDups(rows, true); render(); } }))
             : h("td", null, r.km != null ? fmtKm(r.km) : "–"),
@@ -1507,7 +1509,7 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
   }
   function shotImportCard() {
     const card = h("div", { class: "card" }, h("h2", null, "Import from screenshots"),
-      h("p", { style: "margin:0" }, window.STANDALONE ? "Pick one or more workout screenshots (MapMy, Strava, Garmin and similar). The app reads the text on your phone and adds each one to the list below. Always check the distance, time and date before saving." : "Pick one or more workout screenshots (MapMy, Strava, Garmin and similar). Claude reads each one and adds it to the list below for you to check before saving."));
+      h("p", { style: "margin:0" }, window.STANDALONE ? "Pick one or more workout screenshots (MapMyRide, MapMyRun, MapMyWalk, Strava, Garmin and similar). The app reads the text on your phone and adds each one to the list below. Always check the distance, time and date before saving." : "Pick one or more workout screenshots (MapMy, Strava, Garmin and similar). Claude reads each one and adds it to the list below for you to check before saving."));
     if (!canWrite || !me) { card.append(h("div", { class: "notice" }, "You need edit access to import sessions.")); return card; }
     if (!canReadShots()) { card.append(h("div", { class: "notice" }, "Screenshot reading isn't available in this view. Open the app on claude.ai while signed in to use it.")); return card; }
     const S = ui.shotImp || (ui.shotImp = { busy: false, done: 0, total: 0, notes: [] });
@@ -1535,7 +1537,7 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
         S.status = "";
         if (!r) S.notes.push({ text: `${file.name || "A screenshot"}: couldn't find a distance or time, so it was skipped.`, warn: true });
         else {
-          const row = { date: r.date, activity: r.activity, km: r.km, min: r.min, notes: r.notes, raw: r.raw, fromShot: true, checkAll: !!r.checkAll, dateGuessed: r.dateGuessed, dateHint: r.dateGuessed ? r.dateNote.replace(/ (Check the date|Change it if needed)\.$/, "") : "", person: r.person, otherPerson: r.otherPerson };
+          const row = { app: r.app || "", date: r.date, activity: r.activity, km: r.km, min: r.min, notes: r.notes, raw: r.raw, fromShot: true, checkAll: !!r.checkAll, dateGuessed: r.dateGuessed, dateHint: r.dateGuessed ? r.dateNote.replace(/ (Check the date|Change it if needed)\.$/, "") : "", person: r.person, otherPerson: r.otherPerson };
           ui.importRows.unshift(row); markDups(ui.importRows, true);
           row.pick = !row.dup && !row.batchDup && !row.otherPerson; added++;
         }
@@ -1593,6 +1595,8 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
         } catch { ui.importWarnings.push(`${file.name} isn't a GPX file this app can read.`); }
       } else {
         const res = parseWorkoutCSV(text, ui.slashOrder);
+        const fileApp = /map\s*my|mapmyfitness|mapmyride|mapmyrun|mapmywalk/i.test(text) ? "MapMy" : /strava/i.test(text) ? "Strava" : /garmin/i.test(text) ? "Garmin" : "";
+        res.rows.forEach(x => { x.app = fileApp; });
         res.warnings.forEach(w => ui.importWarnings.push(`${file.name}: ${w}`));
         out.push(...res.rows);
       }
@@ -1615,7 +1619,7 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
       await ensureMyDoc();
       const col = db.collection(`sessions/${me}/items`);
       for (const r of todo) {
-        const body = cleanSession({ date: r.date, activity: r.activity, km: r.km, min: r.min, notes: r.notes, source: "import", createdAt: Date.now() });
+        const body = cleanSession({ date: r.date, activity: r.activity, km: r.km, min: r.min, notes: r.notes, app: r.app || "", source: "import", createdAt: Date.now() });
         let tries = 0;
         for (;;) {
           try { await col.doc().set(body); break; }
