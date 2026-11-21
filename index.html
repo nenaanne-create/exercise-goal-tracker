@@ -258,7 +258,7 @@ a.btn { text-decoration: none; display: inline-block; }
 .rstep.on b, .rstep.on i { color: var(--rkink); }
 .rpace { font-weight: 700; font-size: 14px; padding: 5px 12px; border-radius: 999px; background: color-mix(in srgb, var(--a-red) 12%, var(--surface)); color: var(--a-red); }
 .rpace.ok { background: color-mix(in srgb, var(--good) 14%, var(--surface)); color: var(--good); }
-.btn.rank { background: linear-gradient(135deg, var(--rk2), var(--rk)); color: var(--rkink); border-color: var(--rk); }
+.btn.rank { white-space: nowrap; flex: 0 0 auto; background: linear-gradient(135deg, var(--rk2), var(--rk)); color: var(--rkink); border-color: var(--rk); }
 .rkrows { display: flex; flex-direction: column; gap: 6px; }
 .rkrow { display: grid; grid-template-columns: 22px 1fr 72px 104px 36px; gap: 6px; align-items: center; }
 .rkrow input, .rkrow select { min-width: 0; width: 100%; }
@@ -874,7 +874,7 @@ a.btn { text-decoration: none; display: inline-block; }
   }
   function rankButton(g, v) {
     const { cur } = rankFor(g.target > 0 ? Math.round(100 * v / g.target) : 0);
-    return h("button", { class: "btn rank", type: "button", style: rkStyle(cur), onclick: showMyRank }, `🏅 See your rank: ${cur.name}`);
+    return h("button", { class: "btn rank", type: "button", style: rkStyle(cur), onclick: showMyRank }, `🏅 Your rank: ${cur.name}`);
   }
   function showNudge(g, v, list, t) {
     const wk = isWeek(g);
