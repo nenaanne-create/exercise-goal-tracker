@@ -197,6 +197,9 @@ table.t tr.me td { background: var(--soft); }
 .types { display: flex; flex-direction: column; }
 .trow2 { display: grid; grid-template-columns: auto 1fr auto auto auto; gap: 10px; align-items: center; padding: 7px 0; border-top: 1px solid var(--line); }
 .trow2:first-child { border-top: 0; }
+.tact { display: flex; gap: 4px; align-items: center; justify-content: flex-end; }
+.tact .mv { min-width: 34px; padding-left: 8px; padding-right: 8px; font-size: 16px; }
+.tact .mv:disabled { opacity: .3; }
 @media (max-width: 480px) { .trow2 { grid-template-columns: auto 1fr auto; } .trow2 > :nth-child(4) { display: none; } }
 .swatches { display: flex; gap: 8px; flex-wrap: wrap; }
 .swatches.inline { padding: 4px 0 10px 26px; }
@@ -571,6 +574,8 @@ a.btn { text-decoration: none; display: inline-block; }
       const name = cleanTypeName(t && t.name); if (!name || seen.has(name.toLowerCase())) continue;
       seen.add(name.toLowerCase()); out.push({ name, color: PALETTE.includes(t.color) ? t.color : (BUILTIN_COLOR[name] || "other") });
     }
+    const oi = out.findIndex(t => t.name.toLowerCase() === "other");
+    if (oi >= 0 && oi < out.length - 1) out.push(out.splice(oi, 1)[0]);
     return out.length ? out : DEFAULT_TYPES.map(t => ({ ...t }));
   }
   let TYPES = DEFAULT_TYPES.map(t => ({ ...t }));
@@ -1648,8 +1653,13 @@ a.btn { text-decoration: none; display: inline-block; }
     const err = h("div", { class: "err" });
     const save = async (types, extra) => { await saveSettings({ types, ...(extra || {}) }); ui.wDraft = null; };
     const listEl = h("div", { class: "types" });
-    for (const t of TYPES) {
+    TYPES.forEach((t, i) => {
       const n = counts.get(t.name) || 0;
+      const move = async (d, btn) => { const nt = [...TYPES]; const j = i + d; if (j < 0 || j >= nt.length) return; [nt[i], nt[j]] = [nt[j], nt[i]]; btn.disabled = true; try { await save(nt); } catch (e) { btn.disabled = false; err.textContent = "Couldn't move that type."; writeFailed(e); } };
+      const up = h("button", { class: "btn ghost sm mv", type: "button", "aria-label": `Move ${t.name} up`, title: "Move up", disabled: i === 0 }, "↑");
+      up.addEventListener("click", () => move(-1, up));
+      const dn = h("button", { class: "btn ghost sm mv", type: "button", "aria-label": `Move ${t.name} down`, title: "Move down", disabled: i === TYPES.length - 1 }, "↓");
+      dn.addEventListener("click", () => move(1, dn));
       const del = h("button", { class: "btn ghost sm danger", type: "button", "aria-label": `Delete ${t.name}` }, "Delete");
       del.addEventListener("click", async () => {
         if (TYPES.length <= 1) { err.textContent = "Keep at least one activity type."; return; }
@@ -1663,10 +1673,10 @@ a.btn { text-decoration: none; display: inline-block; }
         h("button", { class: "cbtn", type: "button", title: "Change colour", "aria-label": `Change colour of ${t.name} (now ${COLOR_NAME[t.color]})`, "aria-expanded": String(ui.colorFor === t.name), onclick: () => { ui.colorFor = ui.colorFor === t.name ? null : t.name; render(); } }),
         h("b", null, t.name, shared ? h("span", { class: "hint", style: "margin-left:6px;font-weight:400" }, "same colour as another type") : null),
         h("span", { class: "muted small" }, n ? `${n} session${n === 1 ? "" : "s"}` : "not used yet"),
-        h("span", { class: "muted small" }, `weight ${SET.weights[t.name] ?? 0.5}`), del));
+        h("span", { class: "muted small" }, `weight ${SET.weights[t.name] ?? 0.5}`), h("span", { class: "tact" }, up, dn, del)));
       if (ui.colorFor === t.name) listEl.append(h("div", { class: "swatches inline", role: "group", "aria-label": `Colour for ${t.name}` }, PALETTE.map(c => h("button", { type: "button", class: "sw", style: `background:var(--a-${c})`, "aria-label": COLOR_NAME[c], title: COLOR_NAME[c] + (TYPES.some(x => x.color === c && x.name !== t.name) ? " (in use)" : ""), "aria-pressed": String(t.color === c),
         onclick: async (e) => { if (c === t.color) { ui.colorFor = null; render(); return; } e.currentTarget.disabled = true; try { await save(TYPES.map(x => x.name === t.name ? { ...x, color: c } : x)); ui.colorFor = null; } catch (er) { err.textContent = "Couldn't change the colour."; writeFailed(er); } } }))));
-    }
+    });
     card.append(listEl);
     const orphans = actsIn(list).filter(a => !ACTIVITIES.includes(a));
     if (orphans.length) card.append(h("p", { class: "hint", style: "margin:0" }, `Sessions from deleted types are kept and still count: ${orphans.join(", ")}. Add the type again to pick it when logging.`));
@@ -1682,7 +1692,8 @@ a.btn { text-decoration: none; display: inline-block; }
       if (TYPES.length >= 40) { err.textContent = "That's the most types you can have. Delete one first."; return; }
       if (!(w >= 0 && w <= 10)) { err.textContent = "Weight should be between 0 and 10 (running is 1)."; return; }
       add.disabled = true;
-      try { await save([...TYPES, { name, color: f.color }], { weights: { [name]: w } }); ui.typeForm = null; }
+      try { const oi = TYPES.findIndex(t => t.name.toLowerCase() === "other"); const nt = [...TYPES]; nt.splice(oi >= 0 ? oi : nt.length, 0, { name, color: f.color });
+      await save(nt, { weights: { [name]: w } }); ui.typeForm = null; }
       catch (e) { add.disabled = false; err.textContent = "Couldn't add that type."; writeFailed(e); }
     });
     card.append(h("div", { class: "lbl" }, "Add a type"),
