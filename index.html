@@ -1440,8 +1440,6 @@ a.btn { text-decoration: none; display: inline-block; }
           h("div", { class: "field" }, h("label", { for: "g-tgt" }, "Target"), h("input", { id: "g-tgt", type: "number", inputmode: "decimal", min: "0", step: f.metric === "sessions" ? "1" : "0.5", placeholder: f.metric === "wkm" ? "e.g. 15" : f.metric === "km" ? "e.g. 100" : f.metric === "hours" ? "e.g. 5" : "e.g. 4", value: f.target, oninput: (e) => { f.target = e.target.value; } }))),
         f.metric === "wkm" ? h("p", { class: "hint", style: "margin:0" }, "Goal km are weighted: actual km × activity weight × conditions. Set the weights on the Settings tab.") : null,
         h("div", { class: "row" }, add), err));
-      if (window.STANDALONE) main.append(backupCard());
-      main.append(celebrationCard());
 
     }
   }
@@ -1730,6 +1728,8 @@ a.btn { text-decoration: none; display: inline-block; }
     if (!canWrite || !me) { main.append(h("div", { class: "card" }, h("h2", null, "Settings"), h("div", { class: "notice" }, "You need edit access to change settings."))); return; }
     main.append(typesCard());
     main.append(weightingCard());
+    main.append(celebrationCard());
+    if (window.STANDALONE) main.append(backupCard());
     if (ui.scrollTypes) { ui.scrollTypes = false; setTimeout(() => { const el = document.getElementById("types"); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); }, 50); }
   }
   function viewCrew(main) {
