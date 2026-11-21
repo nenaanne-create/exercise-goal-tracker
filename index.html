@@ -728,18 +728,27 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
     if (g.metric === "km") return [`${fmtKm(left)} km of any activity`];
     return cands.slice(0, 2).map(([a, w]) => { const km = left / w; return `${km >= 10 ? Math.round(km) : fmtKm(km)} km ${VERB[a] || a}`; });
   }
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState !== "visible") return;
+    ui.nudgeShown = false;        // allow today's reminder if it hasn't been shown yet
+    scheduleRender();             // also picks up a new day/week and any celebration due
+  });
+  function nudgeMode() { try { return localStorage.getItem("et-nudge-mode") || "day"; } catch { return "day"; } }
   function maybeNudge() {
     if (!ready || !me || ui.nudgeShown || document.querySelector(".celebrate, .nudge")) return;
     const g = dailyGoal(); if (!g) return;
     const t = today();
+    const mode = nudgeMode();
+    if (mode === "off") { ui.nudgeShown = true; return; }
     let last = null; try { last = localStorage.getItem(NUDGE_KEY); } catch {}
-    if (last === t) { ui.nudgeShown = true; return; }
+    // once a day: skip if shown today; every open: skip if shown in the last 30 minutes
+    if (mode === "day" ? last === t : (last && /^\d+$/.test(last) && Date.now() - +last < 30 * 60 * 1000)) { ui.nudgeShown = true; return; }
     const list = [...mine().values()];
     const v = goalVal(list, g, t);
     const m = members.get(me);
     if (v >= g.target - 1e-9 && m && m.doc && m.doc.celebrated !== celebKey(g, t)) return; // the gold celebration comes first
     ui.nudgeShown = true;
-    try { localStorage.setItem(NUDGE_KEY, t); } catch {}
+    try { localStorage.setItem(NUDGE_KEY, mode === "day" ? t : String(Date.now())); } catch {}
     showNudge(g, v, list, t);
   }
   function showNudge(g, v, list, t) {
@@ -927,9 +936,13 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
   function celebrationCard() {
     const on = soundOn();
     return h("div", { class: "card" }, h("h2", null, "Celebrations"),
-      h("p", { class: "small muted", style: "margin:0" }, "When you reach your target you get a celebration: once per day for a daily target, once per week for a weekly one. The sound follows your phone's media volume."),
+      h("p", { class: "small muted", style: "margin:0" }, "When you reach your target you get a gold celebration: once per day for a daily target, once per week for a weekly one. The reminder shows how much is left when you open the app. The sound follows your phone's media volume."),
       h("div", { class: "row" }, h("button", { class: "btn", type: "button", "aria-pressed": String(on), onclick: () => { setSound(!on); if (!on) { unlockAudio(); setTimeout(playCheer, 60); } render(); } }, on ? "🔊 Sound on" : "🔇 Sound off"),
-        h("button", { class: "btn ghost", type: "button", onclick: () => { const g = dailyGoal() || { activity: "All", metric: "wkm", period: "week", target: 15 }; const t = today(); const list = [...mine().values()]; unlockAudio(); showCelebration(g, Math.max(goalVal(list, g, t), g.target + 2.4), list, t); } }, "Preview")));
+        h("button", { class: "btn ghost", type: "button", onclick: () => { const g = dailyGoal() || { activity: "All", metric: "wkm", period: "week", target: 15 }; const t = today(); const list = [...mine().values()]; unlockAudio(); showCelebration(g, Math.max(goalVal(list, g, t), g.target + 2.4), list, t); } }, "Preview gold popup"),
+        h("button", { class: "btn ghost", type: "button", onclick: () => { document.querySelectorAll(".nudge").forEach(n => n.remove()); const g = dailyGoal() || { activity: "All", metric: "wkm", period: "week", target: 15 }; const t = today(); const list = [...mine().values()]; showNudge(g, goalVal(list, g, t), list, t); } }, "Preview reminder")),
+      h("div", { class: "field", style: "max-width:320px" }, h("label", { for: "nudge-mode" }, "\"Still to go\" reminder"),
+        h("select", { id: "nudge-mode", onchange: (e) => { try { localStorage.setItem("et-nudge-mode", e.target.value); localStorage.removeItem(NUDGE_KEY); } catch {} ui.nudgeShown = false; } },
+          [["day", "Once a day"], ["open", "Every time I open the app"], ["off", "Off"]].map(([k, l]) => h("option", { value: k, selected: nudgeMode() === k }, l)))));
   }
 
   function actPicker(cur, onPick) {
