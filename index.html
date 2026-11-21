@@ -238,6 +238,7 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
 .basis { margin: -4px 0 0; font-size: 13px; color: var(--muted); }
 .basis b { color: var(--good); font-weight: 600; }
 .wtag { margin-left: 8px; font-size: 11px; font-weight: 600; color: var(--good); border: 1px solid currentColor; border-radius: 4px; padding: 0 5px; vertical-align: 1px; }
+.btn.gold { align-self: flex-start; background: linear-gradient(135deg, #fff3b0, #f5c542 55%, #d9a514); color: #4a3300; border-color: #d9a514; }
 .nbox { padding-top: 24px; }
 .nring { width: 132px; height: 132px; border-radius: 50%; display: grid; place-items: center; background: conic-gradient(var(--good) calc(var(--p) * 1%), var(--soft) 0); }
 .nring > div { width: 106px; height: 106px; border-radius: 50%; background: var(--surface); display: flex; flex-direction: column; align-items: center; justify-content: center; }
@@ -772,7 +773,8 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
     const pct = Math.min(100, Math.round(100 * v / g.target));
     const sugg = done ? [] : nudgeSuggestions(left, g, list);
     const prevFocus = document.activeElement;
-    const close = () => { ov.remove(); document.removeEventListener("keydown", onKey); try { prevFocus && prevFocus.focus && prevFocus.focus(); } catch {} };
+    const openedAt = Date.now();
+    const close = () => { if (Date.now() - openedAt < 1000) return; ov.remove(); document.removeEventListener("keydown", onKey); try { prevFocus && prevFocus.focus && prevFocus.focus(); } catch {} };
     const onKey = (e) => { if (e.key === "Escape") close(); };
     const big = done ? "✓" : shortVal(left, g.metric).replace(" goal km", "");
     const ok = h("button", { class: "btn primary big", type: "button", onclick: close }, done ? "Nice!" : "Let's go!");
@@ -876,7 +878,7 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
     return pool[Math.floor(Math.random() * pool.length)];
   }
   function maybeCelebrate() {
-    if (!ready || !me || !canWrite || document.querySelector(".celebrate")) return;
+    if (!ready || !me || !canWrite || document.querySelector(".celebrate .ctitle")) return; // a gold popup is already showing
     const m = members.get(me); if (!m || !m.doc) return;
     const g = dailyGoal(); if (!g) return;
     const t = today(), key = celebKey(g, t);
@@ -885,6 +887,7 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
     const v = goalVal(list, g, t);
     if (v < g.target - 1e-9) return;
     ui.celebratedLocal = key;
+    document.querySelectorAll(".celebrate").forEach(o => { if (o.querySelector(".nbox")) o.remove(); }); // the gold popup replaces the "km to go" reminder
     showCelebration(g, v, list, t);
     saveSettings({ celebrated: key }).catch(() => {});
   }
@@ -898,7 +901,8 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
     const milestone = wk ? [4, 12, 26, 52].includes(streak) : [7, 30, 100, 365].includes(streak);
     const over = v - g.target;
     const prevFocus = document.activeElement;
-    const close = () => { ov.remove(); document.removeEventListener("keydown", onKey); if (prevFocus && prevFocus.focus) try { prevFocus.focus(); } catch {} };
+    const openedAt = Date.now();
+    const close = () => { if (Date.now() - openedAt < 1000) return; ov.remove(); document.removeEventListener("keydown", onKey); if (prevFocus && prevFocus.focus) try { prevFocus.focus(); } catch {} };
     const onKey = (e) => { if (e.key === "Escape") close(); };
     const soundBtn = h("button", { class: "snd", type: "button", "aria-pressed": String(soundOn()), "aria-label": soundOn() ? "Sound on. Tap to mute celebrations" : "Sound off. Tap to turn celebration sound on",
       onclick: (e) => { e.stopPropagation(); const on = !soundOn(); setSound(on); if (on) { unlockAudio(); playCheer(); } soundBtn.textContent = on ? "🔊" : "🔇"; soundBtn.setAttribute("aria-pressed", String(on)); soundBtn.setAttribute("aria-label", on ? "Sound on. Tap to mute celebrations" : "Sound off. Tap to turn celebration sound on"); } }, soundOn() ? "🔊" : "🔇");
@@ -914,7 +918,7 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
         h("div", null, h("b", { class: "plus" }, over > 0.05 ? "+" + shortVal(over, g.metric).replace(" goal km", "") : "✓"), h("span", null, over > 0.05 ? "over target" : "right on target"))),
       streak >= 2 ? h("div", { class: "streakb" + (milestone ? " gold" : "") }, milestone ? `🏆 ${streak}-${wk ? "week" : "day"} milestone!` : `🔥 ${streak} ${wk ? "weeks" : "days"} in a row`) : null,
       ok);
-    const ov = h("div", { class: "celebrate", onclick: close }, box);
+    const ov = h("div", { class: "celebrate" }, box); // only the Nice! button closes it, so a stray tap can't dismiss it unseen
     document.body.append(ov);
     document.addEventListener("keydown", onKey);
     setTimeout(() => { try { ok.focus(); } catch {} }, 50);
@@ -1437,6 +1441,7 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
         h("span", null, `${shortVal(sumV, g.metric)}${over > 0 ? ` (+${shortVal(over, g.metric).replace(" goal km", "")} over)` : ""}`),
         h("span", null, `${fmtKm(wk.km)} km actual`)));
     if (sel !== t) card.append(h("button", { class: "btn ghost sm", type: "button", style: "align-self:flex-start", onclick: () => { ui.dayPick = null; render(); } }, "Back to today"));
+    if (sel === t && done) card.append(h("button", { class: "btn gold", type: "button", onclick: () => { unlockAudio(); showCelebration(g, v, list, t); } }, "🏆 See your celebration"));
     return card;
   }
 
@@ -1491,6 +1496,7 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
     card.append(h("div", { class: "lbl", style: "margin-top:4px" }, "Each day this week"), strip,
       ...(pair ? [h("div", { class: "legend" }, h("span", null, h("i", { class: "sw2 sact" }), "Actual km (by activity)"), h("span", null, h("i", { class: "sw2 swgt" }), "Goal km (weighted)"))] : []),
       h("div", { class: "breakdown" }, h("span", null, h("b", null, `${active} active day${active === 1 ? "" : "s"}`)), h("span", null, done ? `Weekly target reached ✓` : `${shortVal(g.target - v, g.metric)} still to go this week`)));
+    if (done) card.append(h("button", { class: "btn gold", type: "button", onclick: () => { unlockAudio(); showCelebration(g, v, list, t); } }, "🏆 See your celebration"));
     return card;
   }
   function weightedParts(list, from, to, g) {
