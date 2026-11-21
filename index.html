@@ -993,15 +993,17 @@ a.btn { text-decoration: none; display: inline-block; }
     // daily bars
     y = Math.max(y + 70, CY + 760); font(700, 30, DISP); x.fillStyle = MUTED; x.fillText("EACH DAY", CX + 48, y);
     const days = []; for (let d = P.from; d <= P.to; d = addDays(d, 1)) days.push(d);
-    const top = y + 30, base = CY + CH - 90, bh = base - top, n = days.length, slot = (CW - 96) / n, bw = Math.min(70, slot * 0.66);
+    const top = y + 30, base = CY + CH - 110, bh = base - top, n = days.length, slot = (CW - 96) / n, bw = Math.min(70, slot * 0.66);
     const dayKm = days.map(d => totals(list, d, d).km), dMax = Math.max(1, ...dayKm);
     days.forEach((d, i) => {
       const bx = CX + 48 + i * slot + (slot - bw) / 2;
       rr(bx, top, bw, bh, Math.min(10, bw / 3)); x.fillStyle = d > t ? "#f2f5f6" : SOFT; x.fill();
       let yy = base;
       for (const a of actsIn(list)) { const km = totals(list, d, d, a).km; if (!km) continue; const hh = bh * km / dMax; x.fillStyle = picCol(a); x.fillRect(bx, yy - hh, bw, hh); yy -= hh; }
-      if (n <= 7) { x.textAlign = "center"; font(600, 26); x.fillStyle = INK; x.fillText(parseYmd(d).toLocaleDateString("en-AU", { weekday: "short" }), bx + bw / 2, base + 38); if (dayKm[i]) { font(700, 26, DISP); x.fillText(fmtKm(dayKm[i]), bx + bw / 2, yy - 10); } x.textAlign = "left"; }
-      else if (i % 7 === 0) { font(500, 20); x.fillStyle = MUTED; x.fillText(String(parseYmd(d).getDate()), bx, base + 30); }
+      const dd = parseYmd(d), dmy = `${dd.getDate()}/${dd.getMonth() + 1}`;
+      if (n <= 7) { x.textAlign = "center"; font(600, 26); x.fillStyle = INK; x.fillText(dd.toLocaleDateString("en-AU", { weekday: "short" }), bx + bw / 2, base + 36);
+        font(500, 22); x.fillStyle = MUTED; x.fillText(dmy, bx + bw / 2, base + 66); font(600, 26); x.fillStyle = INK; if (dayKm[i]) { font(700, 26, DISP); x.fillText(fmtKm(dayKm[i]), bx + bw / 2, yy - 10); } x.textAlign = "left"; }
+      else if (i % 7 === 0) { font(500, 20); x.fillStyle = MUTED; x.fillText(dmy, bx, base + 32); }
     });
     // footer
     const st = goal ? weekStreaks(list, goal, t).current : 0;
