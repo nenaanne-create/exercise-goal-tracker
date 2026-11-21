@@ -238,6 +238,15 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
 .basis { margin: -4px 0 0; font-size: 13px; color: var(--muted); }
 .basis b { color: var(--good); font-weight: 600; }
 .wtag { margin-left: 8px; font-size: 11px; font-weight: 600; color: var(--good); border: 1px solid currentColor; border-radius: 4px; padding: 0 5px; vertical-align: 1px; }
+.nbox { padding-top: 24px; }
+.nring { width: 132px; height: 132px; border-radius: 50%; display: grid; place-items: center; background: conic-gradient(var(--good) calc(var(--p) * 1%), var(--soft) 0); }
+.nring > div { width: 106px; height: 106px; border-radius: 50%; background: var(--surface); display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.nring b { font: 700 34px/1 var(--f-display); font-variant-numeric: tabular-nums; }
+.nring span { font-size: 10px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; text-align: center; line-height: 1.2; }
+.ntitle2 { font: 700 24px/1.1 var(--f-display); text-transform: uppercase; margin: 6px 0 0; }
+.nsugg2 { width: 100%; display: flex; flex-direction: column; gap: 6px; }
+.nsugg2 .nlbl { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.nsugg2 .sg { background: var(--soft); border-radius: 10px; padding: 8px 10px; font-weight: 600; }
 .nudge { position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom)); transform: translateX(-50%); width: min(420px, calc(100% - 24px)); z-index: 40; background: var(--surface); border-radius: 14px; box-shadow: 0 10px 34px rgba(0,0,0,.25); border-top: 4px solid var(--good); padding: 14px 16px 12px; display: flex; flex-direction: column; gap: 7px; animation: nup .35s cubic-bezier(.2,1.2,.4,1); }
 .nudge.out { opacity: 0; transform: translate(-50%, 16px); transition: all .25s; }
 @media (min-width: 621px) { .nudge { bottom: 24px; } }
@@ -733,16 +742,16 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
     ui.nudgeShown = false;        // allow today's reminder if it hasn't been shown yet
     scheduleRender();             // also picks up a new day/week and any celebration due
   });
-  function nudgeMode() { try { return localStorage.getItem("et-nudge-mode") || "day"; } catch { return "day"; } }
+  function nudgeMode() { try { return localStorage.getItem("et-nudge-mode") || "open"; } catch { return "open"; } }
   function maybeNudge() {
-    if (!ready || !me || ui.nudgeShown || document.querySelector(".celebrate, .nudge")) return;
+    if (!ready || !me || ui.nudgeShown || document.querySelector(".celebrate")) return;
     const g = dailyGoal(); if (!g) return;
     const t = today();
     const mode = nudgeMode();
     if (mode === "off") { ui.nudgeShown = true; return; }
     let last = null; try { last = localStorage.getItem(NUDGE_KEY); } catch {}
     // once a day: skip if shown today; every open: skip if shown in the last 30 minutes
-    if (mode === "day" ? last === t : (last && /^\d+$/.test(last) && Date.now() - +last < 30 * 60 * 1000)) { ui.nudgeShown = true; return; }
+    if (mode === "day" ? last === t : (last && /^\d+$/.test(last) && Date.now() - +last < 5 * 60 * 1000)) { ui.nudgeShown = true; return; }
     const list = [...mine().values()];
     const v = goalVal(list, g, t);
     const m = members.get(me);
@@ -758,20 +767,25 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
     const daysLeft = Math.round((parseYmd(end) - parseYmd(t)) / 864e5) + 1; // including today
     const pct = Math.min(100, Math.round(100 * v / g.target));
     const sugg = done ? [] : nudgeSuggestions(left, g, list);
-    let timer = null;
-    const close = () => { clearTimeout(timer); el.classList.add("out"); setTimeout(() => el.remove(), 250); };
-    const el = h("div", { class: "nudge", role: "status", "aria-live": "polite" },
-      h("button", { class: "nclose", type: "button", "aria-label": "Close", onclick: close }, "×"),
-      h("div", { class: "ntitle" }, done ? "Target reached ✓" : `${shortVal(left, g.metric)} to go ${wk ? "this week" : "today"} 💪`),
-      h("div", { class: "nsub" }, done ? `${shortVal(v, g.metric)} so far ${wk ? "this week" : "today"}: ${shortVal(v - g.target, g.metric)} over your ${shortVal(g.target, g.metric)} target.`
-        : `${shortVal(v, g.metric)} of ${shortVal(g.target, g.metric)}${wk ? ` · ${daysLeft === 1 ? "last day" : daysLeft + " days left"}` : ""}`),
-      h("div", { class: "bar nbar" + (done ? " ok" : "") }, h("span", { style: `width:${pct}%` })),
-      sugg.length ? h("div", { class: "nsugg" }, h("span", { class: "nlbl" }, "That's about"), h("div", null, sugg.map((x, i) => h("span", null, (i ? " or " : "") , h("b", null, x))))) : null,
-      !done && wk && daysLeft > 1 && g.metric !== "sessions" ? h("div", { class: "npace" }, `Or ${shortVal(left / daysLeft, g.metric)} a day for the next ${daysLeft} days.`) : null);
-    el.addEventListener("pointerdown", () => clearTimeout(timer));
-    document.body.append(el);
-    timer = setTimeout(close, 12000);
+    const prevFocus = document.activeElement;
+    const close = () => { ov.remove(); document.removeEventListener("keydown", onKey); try { prevFocus && prevFocus.focus && prevFocus.focus(); } catch {} };
+    const onKey = (e) => { if (e.key === "Escape") close(); };
+    const big = done ? "✓" : shortVal(left, g.metric).replace(" goal km", "");
+    const ok = h("button", { class: "btn primary big", type: "button", onclick: close }, done ? "Nice!" : "Let's go!");
+    const box = h("div", { class: "cbox nbox", role: "dialog", "aria-modal": "true", "aria-labelledby": "nudge-title", onclick: (e) => e.stopPropagation() },
+      h("div", { class: "nring", style: `--p:${pct}` }, h("div", null, h("b", null, big), h("span", null, done ? "target reached" : g.metric === "wkm" ? "goal km to go" : "to go"))),
+      h("h2", { id: "nudge-title", class: "ntitle2" }, done ? `${wk ? "Weekly" : "Daily"} target reached!` : `${wk ? "This week" : "Today"}: ${pct}% done`),
+      h("p", { class: "cline" }, done ? `${shortVal(v, g.metric)} so far, ${shortVal(v - g.target, g.metric)} over your ${shortVal(g.target, g.metric)} target.`
+        : `${shortVal(v, g.metric)} of ${shortVal(g.target, g.metric)}${wk ? ` · ${daysLeft <= 1 ? "last day" : daysLeft + " days left"}` : ""}`),
+      sugg.length ? h("div", { class: "nsugg2" }, h("span", { class: "nlbl" }, "That's about"), sugg.map(x => h("div", { class: "sg" }, x))) : null,
+      !done && wk && daysLeft > 1 && g.metric !== "sessions" ? h("p", { class: "npace" }, `or ${shortVal(left / daysLeft, g.metric)} a day for the next ${daysLeft} days`) : null,
+      ok);
+    const ov = h("div", { class: "celebrate", onclick: close }, box);
+    document.body.append(ov);
+    document.addEventListener("keydown", onKey);
+    setTimeout(() => { try { ok.focus(); } catch {} }, 50);
   }
+
 
   // ----- daily goal celebration -----
   const SOUND_KEY = "et-celebration-sound";
@@ -936,13 +950,13 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
   function celebrationCard() {
     const on = soundOn();
     return h("div", { class: "card" }, h("h2", null, "Celebrations"),
-      h("p", { class: "small muted", style: "margin:0" }, "When you reach your target you get a gold celebration: once per day for a daily target, once per week for a weekly one. The reminder shows how much is left when you open the app. The sound follows your phone's media volume."),
+      h("p", { class: "small muted", style: "margin:0" }, "When you reach your target you get a gold celebration: once per day for a daily target, once per week for a weekly one. A reminder pops up when you open the app to show how many km are left. The sound follows your phone's media volume."),
       h("div", { class: "row" }, h("button", { class: "btn", type: "button", "aria-pressed": String(on), onclick: () => { setSound(!on); if (!on) { unlockAudio(); setTimeout(playCheer, 60); } render(); } }, on ? "🔊 Sound on" : "🔇 Sound off"),
         h("button", { class: "btn ghost", type: "button", onclick: () => { const g = dailyGoal() || { activity: "All", metric: "wkm", period: "week", target: 15 }; const t = today(); const list = [...mine().values()]; unlockAudio(); showCelebration(g, Math.max(goalVal(list, g, t), g.target + 2.4), list, t); } }, "Preview gold popup"),
-        h("button", { class: "btn ghost", type: "button", onclick: () => { document.querySelectorAll(".nudge").forEach(n => n.remove()); const g = dailyGoal() || { activity: "All", metric: "wkm", period: "week", target: 15 }; const t = today(); const list = [...mine().values()]; showNudge(g, goalVal(list, g, t), list, t); } }, "Preview reminder")),
+        h("button", { class: "btn ghost", type: "button", onclick: () => { document.querySelectorAll(".celebrate").forEach(n => n.remove()); const g = dailyGoal() || { activity: "All", metric: "wkm", period: "week", target: 15 }; const t = today(); const list = [...mine().values()]; showNudge(g, goalVal(list, g, t), list, t); } }, "Preview reminder")),
       h("div", { class: "field", style: "max-width:320px" }, h("label", { for: "nudge-mode" }, "\"Still to go\" reminder"),
         h("select", { id: "nudge-mode", onchange: (e) => { try { localStorage.setItem("et-nudge-mode", e.target.value); localStorage.removeItem(NUDGE_KEY); } catch {} ui.nudgeShown = false; } },
-          [["day", "Once a day"], ["open", "Every time I open the app"], ["off", "Off"]].map(([k, l]) => h("option", { value: k, selected: nudgeMode() === k }, l)))));
+          [["open", "Every time I open the app"], ["day", "Once a day"], ["off", "Off"]].map(([k, l]) => h("option", { value: k, selected: nudgeMode() === k }, l)))));
   }
 
   function actPicker(cur, onPick) {
