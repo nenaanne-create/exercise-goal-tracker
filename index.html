@@ -245,6 +245,26 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
 a.btn { text-decoration: none; display: inline-block; }
 .btn.gold { align-self: flex-start; background: linear-gradient(135deg, #fff3b0, #f5c542 55%, #d9a514); color: #4a3300; border-color: #d9a514; }
 .nbox { padding-top: 24px; }
+.rbox { border-top: 6px solid var(--rk); padding-top: 22px; }
+.rbox .medal { animation-iteration-count: 1; }
+.rlbl { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-top: 2px; }
+.rtitle { font: 700 34px/1 var(--f-display); text-transform: uppercase; letter-spacing: .02em; margin: 0; color: var(--rk); text-shadow: 0 1px 0 var(--rk2); }
+.rladder { display: flex; gap: 4px; width: 100%; }
+.rstep { flex: 1; min-width: 0; border-radius: 8px; padding: 5px 2px; border: 1.5px solid var(--rk); display: flex; flex-direction: column; align-items: center; opacity: .55; }
+.rstep b { font-size: 10.5px; line-height: 1.15; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; color: var(--ink); }
+.rstep i { font-style: normal; font-size: 10px; color: var(--muted); }
+.rstep.got { opacity: .9; background: color-mix(in srgb, var(--rk2) 70%, var(--surface)); }
+.rstep.on { opacity: 1; background: linear-gradient(135deg, var(--rk2), var(--rk)); transform: scale(1.08); box-shadow: 0 3px 10px rgba(0,0,0,.18); }
+.rstep.on b, .rstep.on i { color: var(--rkink); }
+.rpace { font-weight: 700; font-size: 14px; padding: 5px 12px; border-radius: 999px; background: color-mix(in srgb, var(--a-red) 12%, var(--surface)); color: var(--a-red); }
+.rpace.ok { background: color-mix(in srgb, var(--good) 14%, var(--surface)); color: var(--good); }
+.btn.rank { background: linear-gradient(135deg, var(--rk2), var(--rk)); color: var(--rkink); border-color: var(--rk); }
+.rkrows { display: flex; flex-direction: column; gap: 6px; }
+.rkrow { display: grid; grid-template-columns: 22px 1fr 72px 104px 36px; gap: 6px; align-items: center; }
+.rkrow input, .rkrow select { min-width: 0; width: 100%; }
+.rkpct { display: flex; align-items: center; gap: 3px; font-size: 13px; color: var(--muted); }
+.rkdot { width: 22px; height: 22px; border-radius: 50%; border: 1px solid rgba(0,0,0,.15); }
+@media (max-width: 480px) { .rkrow { grid-template-columns: 22px 1fr 64px 36px; } .rkrow select { grid-column: 2 / 4; } .rkrow > button { grid-row: 1; grid-column: 4; } }
 .nring { width: 132px; height: 132px; border-radius: 50%; display: grid; place-items: center; background: conic-gradient(var(--good) calc(var(--p) * 1%), var(--soft) 0); }
 .nring > div { width: 106px; height: 106px; border-radius: 50%; background: var(--surface); display: flex; flex-direction: column; align-items: center; justify-content: center; }
 .nring b { font: 700 34px/1 var(--f-display); font-variant-numeric: tabular-nums; }
@@ -644,8 +664,30 @@ a.btn { text-decoration: none; display: inline-block; }
     const weights = {};
     for (const a of new Set([...BUILTIN, ...ACTIVITIES, ...Object.keys(w).slice(0, 80)])) weights[a] = clampNum(w[a], 0, 10, DEFAULT_WEIGHTS[a] ?? 0.5);
     return { weights, cond: { windy: clampNum(c.windy, 0.1, 5, DEFAULT_COND.windy), verywindy: clampNum(c.verywindy, 0.1, 5, DEFAULT_COND.verywindy) },
-      timeKm: clampNum(doc && doc.timeKm, 0, 50, DEFAULT_TIMEKM) };
+      timeKm: clampNum(doc && doc.timeKm, 0, 50, DEFAULT_TIMEKM), ranks: readRanks(doc && doc.ranks) };
   }
+  // colour ranks: [light, dark, text]
+  const RANK_COLORS = { grey: ["#eef0f3", "#6b7280", "#1f2937"], bronze: ["#f6c79a", "#a0522d", "#3d1e08"], silver: ["#f8fafc", "#7b8794", "#1e293b"], gold: ["#fff3b0", "#d4a017", "#4a3300"],
+    platinum: ["#e6fbff", "#3aa3bb", "#073642"], ruby: ["#fecdd3", "#be123c", "#4c0519"], emerald: ["#d1fae5", "#059669", "#022c22"], amethyst: ["#ede9fe", "#7c3aed", "#2e1065"] };
+  const RANK_COLOR_NAME = { grey: "Grey", bronze: "Bronze", silver: "Silver", gold: "Gold", platinum: "Platinum", ruby: "Ruby", emerald: "Emerald", amethyst: "Amethyst" };
+  const DEFAULT_RANKS = [{ name: "Warming up", pct: 0, color: "grey" }, { name: "Bronze", pct: 50, color: "bronze" }, { name: "Silver", pct: 75, color: "silver" }, { name: "Gold", pct: 100, color: "gold" }, { name: "Platinum", pct: 120, color: "platinum" }];
+  function readRanks(raw) {
+    if (!Array.isArray(raw)) return DEFAULT_RANKS.map(r => ({ ...r }));
+    const out = [];
+    for (const r of raw.slice(0, 8)) {
+      const name = cleanTypeName(r && r.name); const pct = Number(r && r.pct);
+      if (!name || !(pct >= 0 && pct <= 500)) continue;
+      out.push({ name, pct: Math.round(pct), color: RANK_COLORS[r.color] ? r.color : "grey" });
+    }
+    out.sort((a, b) => a.pct - b.pct);
+    return out.length ? out : DEFAULT_RANKS.map(r => ({ ...r }));
+  }
+  function rankFor(pct) {
+    const R = SET.ranks; let cur = null, next = null;
+    for (const r of R) { if (pct >= r.pct) cur = r; else { next = r; break; } }
+    return { cur: cur || { name: "Getting started", pct: 0, color: "grey" }, next };
+  }
+  const rkStyle = (r) => { const [l, d, ink] = RANK_COLORS[r.color] || RANK_COLORS.grey; return `--rk:${d};--rk2:${l};--rkink:${ink}`; };
   let SET = readSettings(null);
   function condMult(s) { return s.cond === "custom" ? s.mult : s.cond === "windy" ? SET.cond.windy : s.cond === "verywindy" ? SET.cond.verywindy : 1; }
   function weighted(s) {
@@ -768,10 +810,71 @@ a.btn { text-decoration: none; display: inline-block; }
     const list = [...mine().values()];
     const v = goalVal(list, g, t);
     const m = members.get(me);
-    if (v >= g.target - 1e-9) { ui.nudgeShown = true; return; } // target reached: no reminder (the gold celebration takes over)
     ui.nudgeShown = true;
     try { localStorage.setItem(NUDGE_KEY, mode === "day" ? t : String(Date.now())); } catch {}
-    showNudge(g, v, list, t);
+    showRank(g, v, list, t);
+  }
+  function rankMedalSVG(r) {
+    const [l, d] = RANK_COLORS[r.color] || RANK_COLORS.grey;
+    const NS = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(NS, "svg"); svg.setAttribute("viewBox", "0 0 120 150"); svg.setAttribute("class", "medal"); svg.setAttribute("aria-hidden", "true");
+    svg.innerHTML = `<defs><radialGradient id="rkg" cx="40%" cy="35%" r="70%"><stop offset="0" stop-color="#fff"/><stop offset=".35" stop-color="${l}"/><stop offset="1" stop-color="${d}"/></radialGradient></defs>
+      <polygon points="30,0 55,0 72,62 50,70" fill="${d}"/><polygon points="90,0 65,0 48,62 70,70" fill="${d}" opacity=".8"/>
+      <circle cx="60" cy="98" r="46" fill="${d}"/><circle cx="60" cy="96" r="44" fill="url(#rkg)"/>
+      <circle cx="60" cy="96" r="34" fill="none" stroke="#fff" stroke-opacity=".7" stroke-width="2" stroke-dasharray="3 4"/>
+      <path d="M60 70 l7.6 15.4 17 2.5 -12.3 12 2.9 16.9 -15.2 -8 -15.2 8 2.9 -16.9 -12.3 -12 17 -2.5z" fill="#fff" fill-opacity=".9" stroke="${d}" stroke-width="1.5"/>`;
+    return svg;
+  }
+  function showRank(g, v, list, t) {
+    document.querySelectorAll(".celebrate").forEach(n => n.remove());
+    const wk = isWeek(g);
+    const [start, end] = goalRange(g, t);
+    const daysLeft = Math.round((parseYmd(end) - parseYmd(t)) / 864e5) + 1; // including today
+    const daysGone = Math.round((parseYmd(t) - parseYmd(start)) / 864e5) + 1;
+    const pct = g.target > 0 ? Math.round(100 * v / g.target) : 0;
+    const { cur, next } = rankFor(pct);
+    const left = Math.max(0, g.target - v), done = left <= 1e-9;
+    const sv = (x) => shortVal(x, g.metric);
+    const sugg = done ? [] : nudgeSuggestions(left, g, list);
+    let pace = null;
+    if (wk && !done && g.metric !== "sessions") {
+      const diff = v - g.target * daysGone / (daysGone + daysLeft - 1);
+      pace = diff >= -0.05 ? { ok: true, text: diff > 0.5 ? `Ahead of pace by ${sv(diff)}` : "Right on pace" }
+        : { ok: false, text: `${sv(-diff)} behind pace` + (daysLeft > 1 ? ` · about ${sv(left / daysLeft)} a day catches up` : "") };
+    }
+    const prevFocus = document.activeElement;
+    const openedAt = Date.now();
+    const close = () => { if (Date.now() - openedAt < 1000) return; ov.remove(); document.removeEventListener("keydown", onKey); try { prevFocus && prevFocus.focus && prevFocus.focus(); } catch {} };
+    const onKey = (e) => { if (e.key === "Escape") close(); };
+    const ok = h("button", { class: "btn primary big", type: "button", onclick: close }, done ? "Nice!" : "Let's go!");
+    const top = SET.ranks[SET.ranks.length - 1];
+    const box = h("div", { class: "cbox nbox rbox", style: rkStyle(cur), role: "dialog", "aria-modal": "true", "aria-labelledby": "rank-title", onclick: (e) => e.stopPropagation() },
+      rankMedalSVG(cur),
+      h("div", { class: "rlbl" }, `Your rank ${wk ? "this week" : "today"}`),
+      h("h2", { id: "rank-title", class: "rtitle" }, cur.name),
+      h("p", { class: "cline" }, `${pct}% of your ${sv(g.target)} target`),
+      h("div", { class: "rladder", role: "list", "aria-label": "Ranks" }, SET.ranks.map(r => h("span", { role: "listitem", class: "rstep" + (r === cur ? " on" : pct >= r.pct ? " got" : ""), style: rkStyle(r), title: `${r.name}: ${r.pct}%` }, h("b", null, r.name), h("i", null, `${r.pct}%`)))),
+      h("div", { class: "cstats" },
+        h("div", null, h("b", null, sv(v).replace(" goal km", "")), h("span", null, (g.metric === "wkm" ? "goal km " : "") + "so far")),
+        h("div", null, h("b", null, next ? sv(Math.max(0, g.target * next.pct / 100 - v)).replace(" goal km", "") : "🏆"), h("span", null, next ? `to ${next.name}` : "top rank!"))),
+      pace ? h("div", { class: "rpace" + (pace.ok ? " ok" : "") }, (pace.ok ? "✓ " : "") + pace.text) : null,
+      wk && !done ? h("p", { class: "npace", style: "margin:0" }, daysLeft <= 1 ? "Last day of the week" : `${daysLeft} days left this week`) : null,
+      sugg.length ? h("div", { class: "nsugg2" }, h("span", { class: "nlbl" }, `${sv(left)} to your target. That's about`), sugg.map(x => h("div", { class: "sg" }, x))) : null,
+      !next && top ? h("p", { class: "npace", style: "margin:0" }, "You've reached the highest rank. Legend!") : null,
+      ok);
+    const ov = h("div", { class: "celebrate", onclick: close }, box);
+    document.body.append(ov);
+    document.addEventListener("keydown", onKey);
+    setTimeout(() => { try { ok.focus(); } catch {} }, 50);
+    if (pct >= 100) { const [l, d] = RANK_COLORS[cur.color] || RANK_COLORS.gold; confetti([l, d, "#ffffff", d]); }
+  }
+  function showMyRank() {
+    const g = dailyGoal() || { activity: "All", metric: "wkm", period: "week", target: 15 }; const t = today();
+    showRank(g, goalVal([...mine().values()], g, t), [...mine().values()], t);
+  }
+  function rankButton(g, v) {
+    const { cur } = rankFor(g.target > 0 ? Math.round(100 * v / g.target) : 0);
+    return h("button", { class: "btn rank", type: "button", style: rkStyle(cur), onclick: showMyRank }, `🏅 See your rank: ${cur.name}`);
   }
   function showNudge(g, v, list, t) {
     const wk = isWeek(g);
@@ -894,7 +997,7 @@ a.btn { text-decoration: none; display: inline-block; }
     const list = [...m.sessions.values()];
     const v = goalVal(list, g, t);
     if (v < g.target - 1e-9) return;
-    ui.celebratedLocal = key;
+    ui.celebratedLocal = key; ui.nudgeShown = true; // the gold popup stands in for the rank popup this time
     document.querySelectorAll(".celebrate").forEach(o => { if (o.querySelector(".nbox")) o.remove(); }); // the gold popup replaces the "km to go" reminder
     showCelebration(g, v, list, t);
     saveSettings({ celebrated: key }).catch(() => {});
@@ -1079,13 +1182,13 @@ a.btn { text-decoration: none; display: inline-block; }
   function celebrationCard() {
     const on = soundOn();
     return h("div", { class: "card" }, h("h2", null, "Celebrations"),
-      h("p", { class: "small muted", style: "margin:0" }, "When you reach your target you get a gold celebration: once per day for a daily target, once per week for a weekly one. A reminder pops up when you open the app to show how many km are left. The sound follows your phone's media volume."),
+      h("p", { class: "small muted", style: "margin:0" }, "When you reach your target you get a gold celebration: once per day for a daily target, once per week for a weekly one. When you open the app a rank popup shows where you are against your target, in your rank colour. The sound follows your phone's media volume."),
       h("div", { class: "row" }, h("button", { class: "btn", type: "button", "aria-pressed": String(on), onclick: () => { setSound(!on); if (!on) { unlockAudio(); setTimeout(playCheer, 60); } render(); } }, on ? "🔊 Sound on" : "🔇 Sound off"),
         h("button", { class: "btn ghost", type: "button", onclick: () => { const g = dailyGoal() || { activity: "All", metric: "wkm", period: "week", target: 15 }; const t = today(); const list = [...mine().values()]; unlockAudio(); showCelebration(g, Math.max(goalVal(list, g, t), g.target + 2.4), list, t); } }, "Preview gold popup"),
-        h("button", { class: "btn ghost", type: "button", onclick: () => { document.querySelectorAll(".celebrate").forEach(n => n.remove()); const g = dailyGoal() || { activity: "All", metric: "wkm", period: "week", target: 15 }; const t = today(); const list = [...mine().values()]; showNudge(g, goalVal(list, g, t), list, t); } }, "Preview reminder")),
-      h("div", { class: "field", style: "max-width:320px" }, h("label", { for: "nudge-mode" }, "\"Still to go\" reminder"),
+        h("button", { class: "btn ghost", type: "button", onclick: showMyRank }, "Preview rank popup")),
+      h("div", { class: "field", style: "max-width:320px" }, h("label", { for: "nudge-mode" }, "Rank popup"),
         h("select", { id: "nudge-mode", onchange: (e) => { try { localStorage.setItem("et-nudge-mode", e.target.value); localStorage.removeItem(NUDGE_KEY); } catch {} ui.nudgeShown = false; } },
-          [["open", "Every time I open the app, until the target is reached"], ["day", "Once a day, until the target is reached"], ["off", "Off"]].map(([k, l]) => h("option", { value: k, selected: nudgeMode() === k }, l)))));
+          [["open", "Every time I open the app"], ["day", "Once a day"], ["off", "Off"]].map(([k, l]) => h("option", { value: k, selected: nudgeMode() === k }, l)))));
   }
 
   function actPicker(cur, onPick) {
@@ -1562,7 +1665,7 @@ a.btn { text-decoration: none; display: inline-block; }
         h("span", null, `${shortVal(sumV, g.metric)}${over > 0 ? ` (+${shortVal(over, g.metric).replace(" goal km", "")} over)` : ""}`),
         h("span", null, `${fmtKm(wk.km)} km actual`)));
     if (sel !== t) card.append(h("button", { class: "btn ghost sm", type: "button", style: "align-self:flex-start", onclick: () => { ui.dayPick = null; render(); } }, "Back to today"));
-    if (sel === t && done) card.append(h("button", { class: "btn gold", type: "button", onclick: () => { unlockAudio(); showCelebration(g, v, list, t); } }, "🏆 See your celebration"));
+    if (sel === t) card.append(h("div", { class: "row" }, done ? h("button", { class: "btn gold", type: "button", onclick: () => { unlockAudio(); showCelebration(g, v, list, t); } }, "🏆 See your celebration") : null, rankButton(g, v)));
     return card;
   }
 
@@ -1619,6 +1722,7 @@ a.btn { text-decoration: none; display: inline-block; }
       h("div", { class: "breakdown" }, h("span", null, h("b", null, `${active} active day${active === 1 ? "" : "s"}`)), h("span", null, done ? `Weekly target reached ✓` : `${shortVal(g.target - v, g.metric)} still to go this week`)));
     card.append(h("div", { class: "row" },
       done ? h("button", { class: "btn gold", type: "button", onclick: () => { unlockAudio(); showCelebration(g, v, list, t); } }, "🏆 See your celebration") : null,
+      rankButton(g, v),
       h("a", { class: "btn", href: "#stats", onclick: () => { (ui.pic || (ui.pic = {})).kind = "week"; setTimeout(() => { const el = document.querySelector(".picprev, .card h2"); const cards = [...document.querySelectorAll(".card h2")].find(x => x.textContent === "Share a picture"); cards && cards.scrollIntoView({ behavior: "smooth" }); }, 120); } }, "📷 Share picture")));
     return card;
   }
@@ -1735,10 +1839,50 @@ a.btn { text-decoration: none; display: inline-block; }
     return card;
   }
 
+  function ranksCard() {
+    const d = ui.rkDraft || (ui.rkDraft = SET.ranks.map(r => ({ ...r, pct: String(r.pct) })));
+    const err = h("div", { class: "err" });
+    const g = dailyGoal();
+    const card = h("div", { class: "card", id: "ranks" }, h("h2", null, "Ranks"),
+      h("p", { class: "small muted", style: "margin:0" }, `Your rank is how far you are through your target${g ? ` (${shortVal(g.target, g.metric)} a ${isWeek(g) ? "week" : "day"})` : ""}. Reach a rank's % and its colour shows in the rank popup.`));
+    const rows = h("div", { class: "rkrows" });
+    d.forEach((r, i) => {
+      const [l, dk] = RANK_COLORS[r.color] || RANK_COLORS.grey;
+      rows.append(h("div", { class: "rkrow" },
+        h("span", { class: "rkdot", style: `background:linear-gradient(135deg,${l},${dk})` }),
+        h("input", { type: "text", value: r.name, maxlength: "30", "aria-label": `Rank ${i + 1} name`, oninput: (e) => { r.name = e.target.value; } }),
+        h("span", { class: "rkpct" }, h("input", { type: "number", inputmode: "numeric", min: "0", max: "500", step: "5", value: r.pct, "aria-label": `${r.name || "Rank"} starts at %`, oninput: (e) => { r.pct = e.target.value; } }), "%"),
+        h("select", { "aria-label": `${r.name || "Rank"} colour`, onchange: (e) => { r.color = e.target.value; render(); } }, Object.keys(RANK_COLORS).map(c => h("option", { value: c, selected: c === r.color }, RANK_COLOR_NAME[c]))),
+        h("button", { class: "btn ghost sm danger", type: "button", "aria-label": `Remove ${r.name}`, disabled: d.length <= 1, onclick: () => { d.splice(i, 1); render(); } }, "✕")));
+    });
+    card.append(rows);
+    const saveBtn = h("button", { class: "btn primary", type: "button" }, "Save ranks");
+    saveBtn.addEventListener("click", async () => {
+      const out = [];
+      for (const r of d) {
+        const name = cleanTypeName(r.name), pct = Number(r.pct);
+        if (!name) { err.textContent = "Every rank needs a name."; return; }
+        if (!(r.pct !== "" && pct >= 0 && pct <= 500)) { err.textContent = `${name}: % should be between 0 and 500.`; return; }
+        out.push({ name, pct: Math.round(pct), color: r.color });
+      }
+      if (new Set(out.map(r => r.pct)).size !== out.length) { err.textContent = "Two ranks can't start at the same %."; return; }
+      out.sort((a, b) => a.pct - b.pct);
+      saveBtn.disabled = true;
+      try { await saveSettings({ ranks: out }); ui.rkDraft = null; }
+      catch (e) { saveBtn.disabled = false; err.textContent = "Couldn't save the ranks."; writeFailed(e); }
+    });
+    card.append(h("div", { class: "row" },
+      saveBtn,
+      d.length < 8 ? h("button", { class: "btn ghost", type: "button", onclick: () => { const last = d[d.length - 1]; d.push({ name: "", pct: String(last ? Math.min(500, Number(last.pct || 0) + 25) : 0), color: Object.keys(RANK_COLORS).find(c => !d.some(x => x.color === c)) || "grey" }); render(); } }, "+ Add rank") : null,
+      h("button", { class: "btn ghost", type: "button", onclick: () => { ui.rkDraft = DEFAULT_RANKS.map(r => ({ ...r, pct: String(r.pct) })); render(); } }, "Reset to default"),
+      h("button", { class: "btn ghost", type: "button", onclick: showMyRank }, "🏅 Preview rank popup")), err);
+    return card;
+  }
   function viewSettings(main) {
     if (!canWrite || !me) { main.append(h("div", { class: "card" }, h("h2", null, "Settings"), h("div", { class: "notice" }, "You need edit access to change settings."))); return; }
     main.append(typesCard());
     main.append(weightingCard());
+    main.append(ranksCard());
     main.append(celebrationCard());
     if (window.STANDALONE) main.append(backupCard());
     if (ui.scrollTypes) { ui.scrollTypes = false; setTimeout(() => { const el = document.getElementById("types"); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); }, 50); }
