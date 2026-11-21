@@ -1420,14 +1420,14 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
     const fill = h("div", { class: "dfill" });
     for (const [a, x] of parts) fill.append(h("span", { style: `width:${100 * x / scale}%;background:${acol(a)}`, title: `${a}: ${shortVal(x, g.metric)}` }));
     bar.append(fill, h("div", { class: "dmark", style: `left:${100 * g.target / scale}%` }, h("span", null, shortVal(g.target, g.metric).replace(" goal km", ""))));
-    const daysLeft = Math.round((parseYmd(we) - parseYmd(t)) / 864e5);
+    const daysLeft = Math.round((parseYmd(we) - parseYmd(t)) / 864e5) + 1; // including today
     const fmtS = (d) => parseYmd(d).toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short" });
     card.append(h("h2", null, "This week", h("span", { class: "right" }, `Target ${metricFmt(g.target, g.metric)} a week`)),
       h("p", { class: "basis", style: "margin-top:-6px" }, `${fmtS(ws)} – ${fmtS(we)}`),
       ...(g.metric === "wkm" ? [h("p", { class: "basis" }, h("b", null, "Based on weighted goal km: "), "actual km × your activity weight × conditions (wind). ", h("a", { href: "#goals" }, "See weights"))] : []),
       h("div", { class: "dhead" },
         h("span", { class: "dbig" }, shortVal(v, g.metric).replace(" goal km", ""), h("small", null, ` of ${shortVal(g.target, g.metric)}`)),
-        h("span", { class: "dstate" + (done ? " ok" : "") }, done ? `Done ✓ +${shortVal(v - g.target, g.metric)} over` : `${shortVal(g.target - v, g.metric)} to go · ${daysLeft === 0 ? "last day" : daysLeft + " day" + (daysLeft === 1 ? "" : "s") + " left"}`)),
+        h("span", { class: "dstate" + (done ? " ok" : "") }, done ? `Done ✓ +${shortVal(v - g.target, g.metric)} over` : `${shortVal(g.target - v, g.metric)} to go · ${daysLeft <= 1 ? "last day" : daysLeft + " days left"}`)),
       bar,
       h("div", { class: "breakdown" },
         h("span", null, h("b", null, `${fmtKm(tot.km)} km actual`), ` · ${fmtDuration(tot.min)} · ${tot.sessions} session${tot.sessions === 1 ? "" : "s"}`),
