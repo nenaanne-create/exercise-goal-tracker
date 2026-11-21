@@ -545,7 +545,10 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
   const PALETTE = ["ride", "paddle", "run", "walk", "swim", "gym", "other", "amber", "indigo", "red", "olive", "pink"];
   const COLOR_NAME = { ride: "Blue", paddle: "Cyan", run: "Orange", walk: "Brown", swim: "Purple", gym: "Magenta", other: "Grey", amber: "Gold", indigo: "Navy", red: "Red", olive: "Black", pink: "Pink" };
   const BUILTIN_COLOR = { Ride: "ride", Paddle: "paddle", Run: "run", Walk: "walk", Swim: "swim", Gym: "gym", Other: "other" };
-  const DEFAULT_TYPES = BUILTIN.map(n => ({ name: n, color: BUILTIN_COLOR[n] }));
+  // Main exercises first: ocean paddling and riding
+  const DEFAULT_TYPES = [
+    { name: "Paddle ocean", color: "paddle" }, { name: "Ride", color: "ride" }, { name: "Paddle river", color: "indigo" },
+    { name: "Walk", color: "run" }, { name: "Run", color: "red" }, { name: "Swim", color: "swim" }, { name: "Gym", color: "gym" }, { name: "Other", color: "other" }];
   const cleanTypeName = (s) => (typeof s === "string" ? s.replace(/[^\p{L}\p{N} &'\-]/gu, "").replace(/\s+/g, " ").trim().slice(0, 30) : "");
   function readTypes(doc) {
     const raw = doc && Array.isArray(doc.types) ? doc.types : null;
@@ -613,7 +616,7 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
       notes: typeof d.notes === "string" ? d.notes.slice(0, 500) : "", app: typeof d.app === "string" ? d.app.slice(0, 20) : "", source: d.source === "import" ? "import" : "manual", createdAt: typeof d.createdAt === "number" ? d.createdAt : 0 };
   }
   // ----- weighting -----
-  const DEFAULT_WEIGHTS = { Ride: 0.4, Paddle: 0.7, Run: 1, Walk: 0.7, Swim: 3, Gym: 0, Other: 0.5 };
+  const DEFAULT_WEIGHTS = { Ride: 0.4, Paddle: 0.7, "Paddle ocean": 0.7, "Paddle river": 0.7, Run: 1, Walk: 0.7, Swim: 3, Gym: 0, Other: 0.5 };
   const CONDS = [{ k: "calm", l: "Calm" }, { k: "windy", l: "Windy" }, { k: "verywindy", l: "Very windy" }, { k: "custom", l: "Custom" }];
   const DEFAULT_COND = { windy: 1.2, verywindy: 1.4 };
   const DEFAULT_TIMEKM = 2; // goal km per 30 min for sessions with no distance
@@ -715,7 +718,7 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
 
   // ----- "still to go" card: once a day when the app opens -----
   const NUDGE_KEY = "et-nudge-day";
-  const VERB = { Ride: "riding", Paddle: "paddling", Run: "running", Walk: "walking", Swim: "swimming" };
+  const VERB = { Ride: "riding", Paddle: "paddling", "Paddle ocean": "ocean paddling", "Paddle river": "river paddling", Run: "running", Walk: "walking", Swim: "swimming" };
   function nudgeSuggestions(left, g, list) {
     if (g.metric !== "wkm" && g.metric !== "km") return [];
     const used = new Map(); for (const s of list) used.set(s.activity, (used.get(s.activity) || 0) + 1);
@@ -723,7 +726,7 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
       .map(a => [a, g.metric === "km" ? 1 : (SET.weights[a] ?? 0.5)]).filter(([, w]) => w > 0)
       .sort((x, y) => (used.get(y[0]) || 0) - (used.get(x[0]) || 0) || ACTIVITIES.indexOf(x[0]) - ACTIVITIES.indexOf(y[0]));
     if (g.metric === "km") return [`${fmtKm(left)} km of any activity`];
-    return cands.slice(0, 3).map(([a, w]) => { const km = left / w; return `${km >= 10 ? Math.round(km) : fmtKm(km)} km ${VERB[a] || a}`; });
+    return cands.slice(0, 2).map(([a, w]) => { const km = left / w; return `${km >= 10 ? Math.round(km) : fmtKm(km)} km ${VERB[a] || a}`; });
   }
   function maybeNudge() {
     if (!ready || !me || ui.nudgeShown || document.querySelector(".celebrate, .nudge")) return;
