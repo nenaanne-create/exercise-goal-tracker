@@ -595,7 +595,7 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
   const members = new Map();     // uid -> { doc: {...}, sessions: Map(id -> session), unsub }
   const names = new Map();
   let view = "log";
-  const ui = { editId: null, form: null, showDays: 21, chartMode: "week", chartMetric: "km", crewPeriod: "week", crewMetric: "km", importRows: [], importWarnings: [], importing: false, slashOrder: "mdy", goalForm: null };
+  const ui = { editId: null, form: null, showDays: 21, chartMode: "day", chartMetric: "km", crewPeriod: "week", crewMetric: "km", importRows: [], importWarnings: [], importing: false, slashOrder: "mdy", goalForm: null };
   let chart = null;
 
   const $ = (id) => document.getElementById(id);
@@ -1248,19 +1248,22 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
 
     const cc = h("div", { class: "card" }, h("h2", null, "Trend"),
       h("div", { class: "row" },
-        h("div", { class: "seg", role: "group", "aria-label": "Group by" }, [["week", "Weekly"], ["month", "Monthly"]].map(([k, l]) => h("button", { type: "button", "aria-pressed": String(ui.chartMode === k), onclick: () => { ui.chartMode = k; render(); } }, l))),
+        h("div", { class: "seg", role: "group", "aria-label": "Group by" }, [["day", "Daily"], ["week", "Weekly"], ["month", "Monthly"]].map(([k, l]) => h("button", { type: "button", "aria-pressed": String(ui.chartMode === k), onclick: () => { ui.chartMode = k; render(); } }, l))),
         h("div", { class: "seg", role: "group", "aria-label": "Measure" }, [["km", "Distance"], ["hours", "Time"]].map(([k, l]) => h("button", { type: "button", "aria-pressed": String(ui.chartMetric === k), onclick: () => { ui.chartMetric = k; render(); } }, l)))));
     const box = h("div", { class: "chartbox" }); const canvas = h("canvas", { "aria-label": "Trend chart" }); box.append(canvas); cc.append(box);
     main.append(cc);
     if (!list.length) { box.replaceWith(h("div", { class: "empty" }, "Your trend shows here once you've logged some sessions.")); return; }
     if (!window.Chart) { box.replaceWith(h("div", { class: "empty" }, "The chart couldn't load. Reload the page to try again.")); return; }
     // buckets
+    // The chart starts where your log starts (this week, for a new tracker), up to the latest 12 weeks/months or 31 days.
+    const firstDate = list.map(s => s.date).filter(Boolean).sort()[0] || t;
     const buckets = [];
-    if (ui.chartMode === "week") { let s = weekStart(t); for (let i = 0; i < 12; i++) { buckets.unshift([s, addDays(s, 6)]); s = addDays(s, -7); } }
-    else { const d = parseYmd(t); d.setDate(1); for (let i = 0; i < 12; i++) { const a = ymd(d); const e = new Date(d); e.setMonth(e.getMonth() + 1); e.setDate(0); buckets.unshift([a, ymd(e)]); d.setMonth(d.getMonth() - 1); } }
-    const lab = buckets.map(([a]) => { const d = parseYmd(a); return ui.chartMode === "week" ? d.toLocaleDateString("en-AU", { day: "numeric", month: "short" }) : d.toLocaleDateString("en-AU", { month: "short", year: "2-digit" }); });
+    if (ui.chartMode === "day") { let s = t; const stop = firstDate > addDays(t, -30) ? firstDate : addDays(t, -30); while (s >= stop) { buckets.unshift([s, s]); s = addDays(s, -1); } if (buckets.length < 7) { let x = weekStart(t); buckets.length = 0; for (let i = 0; i < 7; i++) buckets.push([addDays(x, i), addDays(x, i)]); } }
+    else if (ui.chartMode === "week") { let s = weekStart(t); const stop = weekStart(firstDate); for (let i = 0; i < 12 && s >= stop; i++) { buckets.unshift([s, addDays(s, 6)]); s = addDays(s, -7); } }
+    else { const d = parseYmd(t); d.setDate(1); const stop = firstDate.slice(0, 8) + "01"; for (let i = 0; i < 12 && ymd(d) >= stop; i++) { const a = ymd(d); const e = new Date(d); e.setMonth(e.getMonth() + 1); e.setDate(0); buckets.unshift([a, ymd(e)]); d.setMonth(d.getMonth() - 1); } }
+    const lab = buckets.map(([a]) => { const d = parseYmd(a); return ui.chartMode === "day" ? d.toLocaleDateString("en-AU", { weekday: "short", day: "numeric" }) : ui.chartMode === "week" ? "Wk " + d.toLocaleDateString("en-AU", { day: "numeric", month: "short" }) : d.toLocaleDateString("en-AU", { month: "short", year: "2-digit" }); });
     const used = actsIn(list).filter(a => buckets.some(([f, e]) => totals(list, f, e, a).sessions));
-    const datasets = used.map(a => ({ label: a, backgroundColor: cssVar(`--a-${colorKey(a)}`), borderRadius: 3, stack: "s",
+    const datasets = used.map(a => ({ label: a, backgroundColor: cssVar(`--a-${colorKey(a)}`), borderRadius: 3, stack: "s", maxBarThickness: 56,
       data: buckets.map(([f, e]) => { const x = totals(list, f, e, a); return Math.round(metricVal(x, ui.chartMetric) * 10) / 10; }) }));
     const ink = cssVar("--muted"), grid = cssVar("--line");
     try {
