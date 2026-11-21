@@ -205,6 +205,7 @@ table.t tr.me td { background: var(--soft); }
 .act[aria-pressed="true"] { text-shadow: 0 0 2px rgba(0,0,0,.55); }
 .sw { width: 30px; height: 30px; border-radius: 50%; border: 2px solid transparent; }
 .sw[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--ink); }
+.pnum { width: 74px; border: 1px solid var(--line); background: var(--bg); border-radius: 5px; padding: 3px 4px; font-size: 13px; text-align: right; }
 .pdate { border: 1px solid var(--line); background: var(--bg); border-radius: 5px; padding: 3px 4px; font-size: 13px; }
 .dup.warnt { color: var(--a-run); }
 tr.duprow td { background: color-mix(in srgb, var(--a-run) 10%, var(--surface)); }
@@ -414,7 +415,63 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
     for (const s of sorted) { run = prev && addDays(prev, 1) === s ? run + 1 : 1; best = Math.max(best, run); prev = s; }
     return { current: cur, best, loggedToday: set.has(today) };
   }
-  root.ET = { ACTIVITIES, ymd, parseYmd, addDays, isYmd, weekStart, monthStart, periodRange, parseDuration, fmtDuration, fmtKm, pace, mapActivity, parseDateLoose, parseCSV, parseWorkoutCSV, summariseTrack, haversine, streaks };
+  /* Turn text read off a workout screenshot (on-device OCR) into a session.
+     Handles MapMy-style stat blocks (numbers row, labels row) and "Label value" layouts. */
+  function parseShotText(txt, today) {
+    const lines = String(txt || "").split(/\r?\n/).map(l => l.replace(/[|_]/g, " ").replace(/\s+/g, " ").trim()).filter(Boolean);
+    const all = lines.join("\n");
+    let m, days_ago = null, date = null;
+    if ((m = all.match(/(\d{1,3})\s*d(?:ays?)?\s*ago/i))) days_ago = +m[1];
+    else if ((m = all.match(/(\d{1,2})\s*w(?:eeks?)?\s*ago/i))) days_ago = +m[1] * 7;
+    else if (/yesterday/i.test(all)) days_ago = 1;
+    else if (/(\d+)\s*(hours?|hrs?|h|minutes?|mins?)\s*ago|just now|\btoday\b/i.test(all)) days_ago = 0;
+    else {
+      m = all.match(/\b([A-Z][a-z]{2,8}\.?\s+\d{1,2},?\s+\d{4})\b/) || all.match(/\b(\d{1,2}\s+[A-Z][a-z]{2,8}\.?,?\s+\d{4})\b/) || all.match(/\b(\d{1,2}\/\d{1,2}\/\d{2,4})\b/) || all.match(/\b(\d{4}-\d{2}-\d{2})\b/);
+      if (m) date = parseDateLoose(m[1], "dmy");
+    }
+    // activity: "Road Cycling - 9 days ago" style, else a line with an activity word
+    let activity = "";
+    m = all.match(/([A-Za-z][A-Za-z ]{2,40}?)\s*[-–—•·]\s*(?:\d+\s*(?:days?|weeks?|hours?|hrs?|minutes?|mins?)\s*ago|yesterday|today|just now)/i);
+    if (m) activity = m[1].trim();
+    if (!activity) { const l = lines.find(x => x.length < 40 && /(cycl|ride|biking|bike|run|jog|walk|hike|kayak|paddl|canoe|surfski|swim|row)/i.test(x) && !/mapmy/i.test(x)); if (l) activity = l.replace(/[^A-Za-z ]/g, " ").replace(/\s+/g, " ").trim(); }
+    const unit = /\(\s*mi\s*\)|\bmiles?\b/i.test(all) && !/\(\s*km\s*\)|\bkm\b/i.test(all) ? "mi" : "km";
+    const NUM = /\d{1,3}(?:[.,]\d{1,2})?(?::\d{2}){0,2}/g;
+    const LABELS = [["distance", /distance|dist\b/i], ["speed", /avg\.?\s*speed|speed/i], ["duration", /duration|moving\s*time|elapsed|\btime\b/i], ["pace", /pace/i], ["calories", /calories|kcal/i]];
+    let km = null, durText = "";
+    // 1. block layout: numbers just above a row (or rows) of labels
+    const li = lines.findIndex(l => /distance|duration|avg\.?\s*speed/i.test(l));
+    if (li >= 0 && !/\d[.,:]?\d/.test(lines[li].replace(/\((?:km|mi)\)/ig, ""))) { // a row of labels only (no values on it)
+      const labelText = lines.slice(li, li + 5).join(" ");
+      const order = [];
+      for (const [name, re] of LABELS) { const g = new RegExp(re.source, "ig"); let mm; while ((mm = g.exec(labelText))) { if (!order.some(o => o.name === name)) order.push({ name, at: mm.index }); break; } }
+      order.sort((a, b) => a.at - b.at);
+      const nums = [];
+      for (let j = li - 1; j >= Math.max(0, li - 4) && nums.length < order.length; j--) {
+        const toks = lines[j].match(NUM) || [];
+        const letters = lines[j].replace(/[^A-Za-z]/g, "").length;
+        const looksLikeDate = /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b|\d{4}/i.test(lines[j]);
+        if (!toks.length || letters > 6 || looksLikeDate) { if (nums.length) break; continue; }
+        nums.unshift(...toks);
+      }
+      if (nums.length >= order.length && order.length) {
+        const vals = nums.slice(nums.length - order.length);
+        order.forEach((o, k) => { if (o.name === "distance" && !/:/.test(vals[k])) km = parseFloat(vals[k].replace(",", ".")); if (o.name === "duration" && /:/.test(vals[k])) durText = vals[k]; });
+      }
+      if (km == null) { const t = nums.find(x => !/:/.test(x) && /[.,]/.test(x)); if (t) km = parseFloat(t.replace(",", ".")); }
+      if (!durText) { const t = nums.find(x => /:/.test(x)); if (t) durText = t; }
+    }
+    // 2. inline layout: "Distance 20.54 km", "Time 54:29"
+    if (km == null && (m = all.match(/dist(?:ance)?[^\d\n]{0,15}(\d{1,3}(?:[.,]\d{1,2})?)/i))) km = parseFloat(m[1].replace(",", "."));
+    if (km == null && (m = all.match(/(\d{1,3}(?:[.,]\d{1,2})?)\s*(km|mi)\b/i))) km = parseFloat(m[1].replace(",", "."));
+    if (!durText && (m = all.match(/(?:duration|moving\s*time|elapsed|time)[^\d\n]{0,15}(\d{1,2}:\d{2}(?::\d{2})?)/i))) durText = m[1];
+    if (!durText && (m = all.match(/(\d+)\s*h\s*(\d{1,2})\s*m/i))) durText = `${m[1]}:${m[2]}:00`;
+    if (km != null && !(km > 0 && km < 1000)) km = null;
+    if (km != null && unit === "mi") km = Math.round(km * 1.609344 * 100) / 100;
+    let min = null;
+    if (durText) { const p = durText.split(":").map(Number); min = p.length === 3 ? p[0] * 60 + p[1] + p[2] / 60 : p[0] + p[1] / 60; min = Math.round(min * 10) / 10; }
+    return { activity, km, unit, durText, min, date, days_ago, found: km != null || min != null };
+  }
+  root.ET = { parseShotText, ACTIVITIES, ymd, parseYmd, addDays, isYmd, weekStart, monthStart, periodRange, parseDuration, fmtDuration, fmtKm, pace, mapActivity, parseDateLoose, parseCSV, parseWorkoutCSV, summariseTrack, haversine, streaks };
 })(typeof window !== "undefined" ? window : globalThis);
 </script>
 
@@ -813,14 +870,17 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
       h("button", { class: "act edit", type: "button", onclick: () => { ui.scrollTypes = true; location.hash = "#goals"; } }, "+ / − Types"));
   }
   // ----- screenshot → form -----
+  const LOCAL_SHOT_TYPES = ["image/png", "image/jpeg", "image/webp"];
+  function canReadShots() { return window.STANDALONE ? typeof createImageBitmap === "function" : !!(sampleFn && shotTypes); }
+  function shotAccept() { return (window.STANDALONE ? LOCAL_SHOT_TYPES : shotTypes || []).join(","); }
   function shotRow() {
-    const input = h("input", { type: "file", accept: shotTypes.join(","), class: "hidden", id: "shot-file" });
+    const input = h("input", { type: "file", accept: shotAccept(), class: "hidden", id: "shot-file" });
     input.addEventListener("change", () => { const f = input.files && input.files[0]; if (f) readShot(f); });
     const busy = ui.shot && ui.shot.busy;
     const row = h("div", { class: "row" }, input,
       h("button", { class: "btn", type: "button", disabled: busy, onclick: () => input.click() }, busy ? "Reading screenshot…" : "Fill from screenshot"),
       busy ? h("button", { class: "btn ghost sm", type: "button", onclick: () => { ui.shotCtl && ui.shotCtl.abort(); } }, "Stop")
-        : h("span", { class: "hint" }, "A MapMy (or similar) workout screenshot fills in the form for you to check"));
+        : h("span", { class: "hint" }, window.STANDALONE ? "Reads a MapMy (or similar) screenshot on your phone and fills in the form. Check the numbers before saving." : "A MapMy (or similar) workout screenshot fills in the form for you to check"));
     return row;
   }
   function minutesToForm(min) { if (min == null) return ""; const t = Math.round(min); return t >= 60 ? `${Math.floor(t / 60)}.${String(t % 60).padStart(2, "0")}` : String(t); }
@@ -835,7 +895,42 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
   ].join("\n");
   /* Ask Claude to read one screenshot. Resolves to null for "not a workout", else
      {date, activity, km, min, notes, raw, durText, dateNote, dateGuessed, person, otherPerson}. Rejects with a sample error. */
-  async function readShotData(file, signal) {
+  // ----- on-device screenshot reading (standalone app: no Claude) -----
+  const TESSERACT_URL = "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js";
+  let ocrWorkerP = null;
+  function getOcrWorker(onStatus) {
+    if (!ocrWorkerP) ocrWorkerP = (async () => {
+      if (!window.Tesseract) await new Promise((res, rej) => { const sc = document.createElement("script"); sc.src = TESSERACT_URL; sc.onload = res; sc.onerror = () => rej(new Error("load")); document.head.append(sc); });
+      onStatus && onStatus("Getting the text reader ready (first time only, about 10 MB)…");
+      return window.Tesseract.createWorker("eng");
+    })().catch(e => { ocrWorkerP = null; throw e; });
+    return ocrWorkerP;
+  }
+  async function shotCanvas(file) {
+    const bmp = await createImageBitmap(file);
+    const scale = Math.min(2.5, Math.max(1, 1600 / bmp.width));
+    const c = document.createElement("canvas"); c.width = Math.round(bmp.width * scale); c.height = Math.round(bmp.height * scale);
+    const ctx = c.getContext("2d"); ctx.filter = "grayscale(1) contrast(1.4)"; ctx.drawImage(bmp, 0, 0, c.width, c.height);
+    return c;
+  }
+  async function readShotDataLocal(file, signal, onStatus) {
+    const t = today();
+    let worker;
+    try { worker = await getOcrWorker(onStatus); } catch { throw { code: "ocr_unavailable" }; }
+    if (signal && signal.aborted) throw { code: "cancelled" };
+    let text = "";
+    try { const img = await shotCanvas(file); text = (await worker.recognize(img)).data.text || ""; } catch { throw { code: "image_rejected" }; }
+    if (signal && signal.aborted) throw { code: "cancelled" };
+    const r = window.ET.parseShotText(text, t);
+    if (!r.found) return null;
+    let date = r.date && r.date <= t ? r.date : null, dateNote = "", dateGuessed = false;
+    if (date) dateNote = `Date: ${fmtDay(date)}.`;
+    else if (r.days_ago != null && r.days_ago < 400) { date = addDays(t, -r.days_ago); dateGuessed = true; dateNote = r.days_ago === 0 ? `Today, ${fmtDay(date)}.` : `"${r.days_ago} day${r.days_ago === 1 ? "" : "s"} ago" → ${fmtDay(date)}. Check the date.`; }
+    else { date = t; dateGuessed = true; dateNote = "No date was found, so it's set to today. Change it if needed."; }
+    return { date, activity: resolveType(r.activity), km: r.km, min: r.min, notes: "", raw: r.activity.slice(0, 60), durText: r.durText, dateNote, dateGuessed, person: null, otherPerson: false, checkAll: true };
+  }
+  async function readShotData(file, signal, onStatus) {
+    if (window.STANDALONE) return readShotDataLocal(file, signal, onStatus);
     const t = today();
     const r = await sampleFn.json(SHOT_PROMPT, { images: [file], modelTier: "quick", signal });
     if (!r || typeof r !== "object" || r.is_workout === false) return null;
@@ -858,19 +953,20 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
   function shotErrorText(e) {
     const c = e && e.code;
     if (["not_granted", "sampling_disabled", "images_unavailable", "capability_disabled", "capability_removed", "not_declared"].includes(c)) { shotTypes = null; return "Screenshot reading isn't available here."; }
+    if (c === "ocr_unavailable") return "The text reader couldn't load. Check your internet connection and try again.";
     if (c === "rate_limited") return "Claude is busy or your usage limit is reached. Try again in a little while.";
     if (c === "image_rejected") return "That image couldn't be read. Try a PNG or JPEG screenshot.";
     if (c === "session_expired") return "Sign in to Claude again, then try once more.";
     return "Couldn't read that screenshot.";
   }
   async function readShot(file) {
-    if (!sampleFn || (ui.shot && ui.shot.busy)) return;
+    if (!canReadShots() || (ui.shot && ui.shot.busy)) return;
     ui.shotCtl = new AbortController();
     ui.shot = { busy: true, msg: "Reading the screenshot. This can take up to a minute." };
     render();
     try {
-      const r = await readShotData(file, ui.shotCtl.signal);
-      if (!r) { ui.shot = { msg: "That doesn't look like a workout screenshot. Try another image.", warn: true }; render(); return; }
+      const r = await readShotData(file, ui.shotCtl.signal, (m) => { ui.shot = { busy: true, msg: m }; render(); });
+      if (!r) { ui.shot = { msg: window.STANDALONE ? "Couldn't find a distance or time in that screenshot. Try a clearer screenshot, or enter it by hand." : "That doesn't look like a workout screenshot. Try another image.", warn: true }; render(); return; }
       const f = ui.form || newForm();
       ui.form = { ...f, date: r.date, activity: r.activity, km: r.km != null ? String(r.km) : f.km, dur: r.min != null ? minutesToForm(r.min) : f.dur, notes: r.notes && !f.notes ? r.notes : f.notes, cond: "calm", mult: "" };
       const read = [r.raw || r.activity, r.km != null ? `${r.km} km` : null, r.durText || (r.min != null ? fmtDuration(r.min) : null)].filter(Boolean).join(", ");
@@ -918,7 +1014,7 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
       const f = ui.form; const editing = !!ui.editId;
       const err = h("div", { class: "err" });
       const card = h("div", { class: "card" }, h("h2", null, editing ? "Edit session" : "Add a session"));
-      if (!editing && sampleFn && shotTypes) card.append(shotRow());
+      if (!editing && canReadShots()) card.append(shotRow());
       if (!editing && ui.shot && ui.shot.msg) card.append(h("div", { class: "notice" + (ui.shot.warn ? " warn" : "") }, ui.shot.msg));
       card.append(actPicker(f.activity, (a) => { f.activity = a; render(); }));
       card.append(condPicker(f));
@@ -1364,7 +1460,7 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
         h("option", { value: "mdy", selected: ui.slashOrder === "mdy" }, "month/day (MapMy)"), h("option", { value: "dmy", selected: ui.slashOrder === "dmy" }, "day/month"))));
     for (const w of ui.importWarnings) card.append(h("div", { class: "notice" }, w));
     main.append(card);
-    if (!window.STANDALONE) main.append(shotImportCard());
+    main.append(shotImportCard());
 
     if (ui.importRows.length) {
       const rows = ui.importRows;
@@ -1388,7 +1484,12 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
             r.fromShot && r.dateGuessed ? h("div", { class: "dup warnt" }, r.dateHint || "Check the date") : null,
             r.otherPerson ? h("div", { class: "dup warnt" }, `Shows ${r.person}`) : null),
           h("td", { style: "text-align:left" }, h("select", { "aria-label": "Activity", onchange: (e) => { r.activity = e.target.value; const was = r.dup || r.batchDup; markDups(rows, true); if (!was && (r.dup || r.batchDup)) r.pick = false; render(); } }, ACTIVITIES.map(a => h("option", { value: a, selected: a === r.activity }, a))), r.raw && r.raw.toLowerCase() !== r.activity.toLowerCase() ? h("div", { class: "dup" }, r.raw) : null),
-          h("td", null, r.km != null ? fmtKm(r.km) : "–"), h("td", null, r.min != null ? fmtDuration(r.min) : "–")))))));
+          r.fromShot ? h("td", null, h("input", { type: "number", class: "pnum", inputmode: "decimal", min: "0", step: "0.01", value: r.km != null ? String(r.km) : "", "aria-label": "Distance km",
+              onchange: (e) => { const v = parseFloat(e.target.value); r.km = isFinite(v) && v > 0 ? Math.round(v * 100) / 100 : null; markDups(rows, true); render(); } }))
+            : h("td", null, r.km != null ? fmtKm(r.km) : "–"),
+          r.fromShot ? h("td", null, h("input", { type: "text", class: "pnum", inputmode: "decimal", value: r.min != null ? minutesToForm(r.min) : "", placeholder: "1.25", "aria-label": "Time (hours.minutes or minutes)",
+              onchange: (e) => { const v = parseDuration(e.target.value); r.min = v != null && isFinite(v) && v > 0 ? v : null; markDups(rows, true); render(); } }), h("div", { class: "dup" }, r.min != null ? fmtDuration(r.min) : ""))
+            : h("td", null, r.min != null ? fmtDuration(r.min) : "–")))))));
       if (rows.length > 500) pc.append(h("div", { class: "notice" }, `Showing the first 500 of ${rows.length}. All selected rows will be imported.`));
       const err = h("div", { class: "err" });
       const go = h("button", { class: "btn primary" + (ui.dupArmed && pickedDups ? " danger armed" : ""), type: "button", disabled: !picked || ui.importing },
@@ -1406,15 +1507,16 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
   }
   function shotImportCard() {
     const card = h("div", { class: "card" }, h("h2", null, "Import from screenshots"),
-      h("p", { style: "margin:0" }, "Pick one or more workout screenshots (MapMy, Strava, Garmin and similar). Claude reads each one and adds it to the list below for you to check before saving."));
+      h("p", { style: "margin:0" }, window.STANDALONE ? "Pick one or more workout screenshots (MapMy, Strava, Garmin and similar). The app reads the text on your phone and adds each one to the list below. Always check the distance, time and date before saving." : "Pick one or more workout screenshots (MapMy, Strava, Garmin and similar). Claude reads each one and adds it to the list below for you to check before saving."));
     if (!canWrite || !me) { card.append(h("div", { class: "notice" }, "You need edit access to import sessions.")); return card; }
-    if (!sampleFn || !shotTypes) { card.append(h("div", { class: "notice" }, "Screenshot reading isn't available in this view. Open the app on claude.ai while signed in to use it.")); return card; }
+    if (!canReadShots()) { card.append(h("div", { class: "notice" }, "Screenshot reading isn't available in this view. Open the app on claude.ai while signed in to use it.")); return card; }
     const S = ui.shotImp || (ui.shotImp = { busy: false, done: 0, total: 0, notes: [] });
-    const input = h("input", { type: "file", accept: shotTypes.join(","), multiple: true, class: "hidden", id: "shot-imp" });
+    const input = h("input", { type: "file", accept: shotAccept(), multiple: true, class: "hidden", id: "shot-imp" });
     input.addEventListener("change", () => { const files = [...(input.files || [])]; input.value = ""; if (files.length) runShotImport(files); });
     card.append(h("div", { class: "row" }, input,
       h("button", { class: "btn primary", type: "button", disabled: S.busy, onclick: () => input.click() }, S.busy ? `Reading ${Math.min(S.done + 1, S.total)} of ${S.total}…` : "Choose screenshots"),
-      S.busy ? h("button", { class: "btn", type: "button", onclick: () => { S.ctl && S.ctl.abort(); } }, "Stop") : h("span", { class: "hint" }, `Up to ${SHOT_MAX} at a time. Each one takes a few seconds and uses a little of your Claude plan.`)));
+      S.busy && S.status ? h("span", { class: "hint" }, S.status) : null,
+      S.busy ? h("button", { class: "btn", type: "button", onclick: () => { S.ctl && S.ctl.abort(); } }, "Stop") : h("span", { class: "hint" }, window.STANDALONE ? `Up to ${SHOT_MAX} at a time. The first use downloads the text reader (about 10 MB).` : `Up to ${SHOT_MAX} at a time. Each one takes a few seconds and uses a little of your Claude plan.`)));
     for (const n of S.notes) card.append(h("div", { class: "notice" + (n.warn ? " warn" : "") }, n.text));
     return card;
   }
@@ -1429,10 +1531,11 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
     for (const file of list) {
       if (S.ctl.signal.aborted) break;
       try {
-        const r = await readShotData(file, S.ctl.signal);
-        if (!r) S.notes.push({ text: `${file.name || "A screenshot"} doesn't look like a workout, so it was skipped.`, warn: true });
+        const r = await readShotData(file, S.ctl.signal, (m) => { S.status = m; render(); });
+        S.status = "";
+        if (!r) S.notes.push({ text: `${file.name || "A screenshot"}: couldn't find a distance or time, so it was skipped.`, warn: true });
         else {
-          const row = { date: r.date, activity: r.activity, km: r.km, min: r.min, notes: r.notes, raw: r.raw, fromShot: true, dateGuessed: r.dateGuessed, dateHint: r.dateGuessed ? r.dateNote.replace(/ (Check the date|Change it if needed)\.$/, "") : "", person: r.person, otherPerson: r.otherPerson };
+          const row = { date: r.date, activity: r.activity, km: r.km, min: r.min, notes: r.notes, raw: r.raw, fromShot: true, checkAll: !!r.checkAll, dateGuessed: r.dateGuessed, dateHint: r.dateGuessed ? r.dateNote.replace(/ (Check the date|Change it if needed)\.$/, "") : "", person: r.person, otherPerson: r.otherPerson };
           ui.importRows.unshift(row); markDups(ui.importRows, true);
           row.pick = !row.dup && !row.batchDup && !row.otherPerson; added++;
         }
