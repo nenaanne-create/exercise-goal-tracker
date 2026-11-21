@@ -961,18 +961,23 @@ a.btn { text-decoration: none; display: inline-block; }
     const val = goal ? metricVal(totals(list, P.from, P.to, goal.activity), goal.metric) : tot.wkm;
     const pct = goal ? Math.min(1, val / goal.target) : 1, done = goal ? val >= goal.target - 1e-9 : false;
     x.lineCap = "round"; x.lineWidth = 30; x.strokeStyle = SOFT; x.beginPath(); x.arc(ringX, ringY, R, 0, Math.PI * 2); x.stroke();
-    if (pct > 0) { x.strokeStyle = done ? "#d9a514" : GOOD; x.beginPath(); x.arc(ringX, ringY, R, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * pct); x.stroke(); }
+    if (pct > 0) { x.strokeStyle = done || !goal ? (done ? "#d9a514" : GOOD) : GOOD; x.beginPath(); x.arc(ringX, ringY, R, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(pct, 0.9999)); x.stroke(); }
     x.textAlign = "center"; x.fillStyle = INK; font(700, 92, DISP); x.fillText(fmtKm(val), ringX, ringY + 18);
     font(600, 24); x.fillStyle = MUTED; x.fillText(goal ? `of ${fmtKm(goal.target)} goal km` : "goal km", ringX, ringY + 58);
     x.textAlign = "left";
     // headline + stats beside ring
     const SX = CX + 400;
-    if (done) { font(700, 52, DISP); x.fillStyle = "#b8860b"; x.fillText("🏆 GOAL MET!", SX, CY + 120); }
+    if (done) { // gold medal + headline (drawn, so it looks the same on every phone)
+      const mx = SX + 34, my = CY + 102; x.fillStyle = "#d9a514"; x.beginPath(); x.arc(mx, my, 32, 0, Math.PI * 2); x.fill();
+      x.fillStyle = "#fff6c8"; x.beginPath(); for (let i = 0; i < 10; i++) { const r = i % 2 ? 9 : 22, a = -Math.PI / 2 + i * Math.PI / 5; x.lineTo(mx + r * Math.cos(a), my + r * Math.sin(a)); } x.closePath(); x.fill();
+      font(700, 52, DISP); x.fillStyle = "#b8860b"; x.fillText("GOAL MET!", SX + 82, CY + 120); }
     else if (goal) { font(700, 52, DISP); x.fillStyle = INK; x.fillText(`${Math.round(pct * 100)}% OF TARGET`, SX, CY + 120); }
     else { font(700, 52, DISP); x.fillStyle = INK; x.fillText("NICE WORK!", SX, CY + 120); }
     font(500, 28); x.fillStyle = MUTED;
     x.fillText(done ? `+${fmtKm(val - goal.target)} goal km over target` : goal ? `${fmtKm(goal.target - val)} goal km to go` : `${tot.sessions} session${tot.sessions === 1 ? "" : "s"}`, SX, CY + 164);
-    const stat = (i, big, small) => { const bx = SX + i * 200, by = CY + 210; rr(bx, by, 184, 130, 18); x.fillStyle = SOFT; x.fill(); x.fillStyle = INK; font(700, 52, DISP); x.fillText(big, bx + 18, by + 66); font(600, 20); x.fillStyle = MUTED; x.fillText(small, bx + 18, by + 104); };
+    const stat = (i, big, small) => { const bx = SX + i * 194, by = CY + 210, bw = 180; rr(bx, by, bw, 130, 18); x.fillStyle = SOFT; x.fill(); x.fillStyle = INK;
+      let px = 52; font(700, px, DISP); while (x.measureText(big).width > bw - 30 && px > 26) { px -= 2; font(700, px, DISP); } // shrink long values to fit
+      x.fillText(big, bx + 16, by + 66); font(600, 20); x.fillStyle = MUTED; x.fillText(small, bx + 16, by + 104); };
     stat(0, fmtKm(tot.km), "KM ACTUAL"); stat(1, fmtDuration(tot.min), "TIME"); stat(2, String(tot.sessions), "SESSIONS");
     // activity breakdown
     let y = CY + 440; font(700, 30, DISP); x.fillStyle = MUTED; x.fillText("BY ACTIVITY", CX + 48, y); y += 22;
@@ -1001,7 +1006,7 @@ a.btn { text-decoration: none; display: inline-block; }
     // footer
     const st = goal ? weekStreaks(list, goal, t).current : 0;
     font(600, 26); x.fillStyle = "rgba(255,255,255,.9)";
-    x.fillText(st >= 2 ? `🔥 ${st} weeks in a row hitting the target` : (goal ? `Weekly target: ${fmtKm(goal.target)} goal km (weighted)` : "Goal km are weighted by activity"), 64, H - 40);
+    x.fillText(st >= 2 ? `${st} weeks in a row hitting the target` : (goal ? `Weekly target: ${fmtKm(goal.target)} goal km (weighted)` : "Goal km are weighted by activity"), 64, H - 40);
     x.textAlign = "right"; font(500, 22); x.fillStyle = "rgba(255,255,255,.7)"; x.fillText(`Made ${fmtD(t, true)}`, W - 64, H - 40); x.textAlign = "left";
     return await new Promise((res, rej) => c.toBlob(b => (b ? res(b) : rej(new Error("toBlob"))), "image/png"));
   }
