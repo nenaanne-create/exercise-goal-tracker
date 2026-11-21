@@ -71,7 +71,7 @@ nav.tabs a { text-decoration: none; color: var(--muted); font-weight: 600; font-
 nav.tabs a[aria-current="page"] { color: var(--accent); background: var(--soft); }
 @media (max-width: 620px) {
   nav.tabs { position: fixed; bottom: 0; left: 0; right: 0; background: var(--surface); border-top: 1px solid var(--line); margin: 0; justify-content: space-around; padding: 6px 4px calc(6px + env(safe-area-inset-bottom)); z-index: 6; }
-  nav.tabs a { font-size: 13px; padding: 8px 6px; flex: 1; text-align: center; }
+  nav.tabs a { font-size: 12.5px; padding: 8px 2px; flex: 1; text-align: center; }
 }
 main { max-width: 760px; margin: 0 auto; padding: 14px 16px 24px; display: flex; flex-direction: column; gap: 14px; }
 .card { background: var(--surface); border-radius: 10px; box-shadow: var(--shadow); padding: 14px; display: flex; flex-direction: column; gap: 12px; }
@@ -296,6 +296,7 @@ a.btn { text-decoration: none; display: inline-block; }
       <a href="#stats" data-view="stats">Stats</a>
       <a href="#goals" data-view="goals">Goals</a>
       <a href="#import" data-view="import">Import</a>
+      <a href="#settings" data-view="settings">Settings</a>
     </nav>
   </div>
 </header>
@@ -726,7 +727,7 @@ a.btn { text-decoration: none; display: inline-block; }
     SET = readSettings(myDocNow);
     const main = $("main"); main.textContent = "";
     if (!db) { main.append(h("div", { class: "card" }, h("div", { class: "empty" }, $("status").textContent))); return; }
-    ({ log: viewLog, stats: viewStats, goals: viewGoals, crew: viewCrew, import: viewImport })[view](main);
+    ({ log: viewLog, stats: viewStats, goals: viewGoals, crew: viewCrew, import: viewImport, settings: viewSettings })[view](main);
     resolveNames();
     maybeCelebrate();
     maybeNudge();
@@ -1085,7 +1086,7 @@ a.btn { text-decoration: none; display: inline-block; }
   function actPicker(cur, onPick) {
     return h("div", { class: "acts", role: "group", "aria-label": "Activity" }, ACTIVITIES.map(a =>
       h("button", { class: "act", type: "button", style: `--ac:${acol(a)}`, "aria-pressed": String(a === cur), onclick: () => onPick(a) }, h("span", { class: "dot" }), a)),
-      h("button", { class: "act edit", type: "button", onclick: () => { ui.scrollTypes = true; location.hash = "#goals"; } }, "+ / − Types"));
+      h("button", { class: "act edit", type: "button", onclick: () => { ui.scrollTypes = true; location.hash = "#settings"; } }, "+ / − Types"));
   }
   // ----- screenshot → form -----
   const LOCAL_SHOT_TYPES = ["image/png", "image/jpeg", "image/webp"];
@@ -1437,13 +1438,11 @@ a.btn { text-decoration: none; display: inline-block; }
           h("div", { class: "field" }, h("label", { for: "g-per" }, "Every"), h("select", { id: "g-per", onchange: (e) => { f.period = e.target.value; } }, [["day", "Day"], ["week", "Week (Mon–Sun)"], ["month", "Month"]].map(([k, l]) => h("option", { value: k, selected: k === f.period }, l)))),
           h("div", { class: "field" }, h("label", { for: "g-met" }, "Measure"), h("select", { id: "g-met", onchange: (e) => { f.metric = e.target.value; render(); } }, [["wkm", "Goal km (weighted)"], ["km", "Distance (km)"], ["hours", "Time (hours)"], ["sessions", "Sessions"]].map(([k, l]) => h("option", { value: k, selected: k === f.metric }, l)))),
           h("div", { class: "field" }, h("label", { for: "g-tgt" }, "Target"), h("input", { id: "g-tgt", type: "number", inputmode: "decimal", min: "0", step: f.metric === "sessions" ? "1" : "0.5", placeholder: f.metric === "wkm" ? "e.g. 15" : f.metric === "km" ? "e.g. 100" : f.metric === "hours" ? "e.g. 5" : "e.g. 4", value: f.target, oninput: (e) => { f.target = e.target.value; } }))),
-        f.metric === "wkm" ? h("p", { class: "hint", style: "margin:0" }, "Goal km are weighted: actual km × activity weight × conditions. Set the weights in Goal km weighting below.") : null,
+        f.metric === "wkm" ? h("p", { class: "hint", style: "margin:0" }, "Goal km are weighted: actual km × activity weight × conditions. Set the weights on the Settings tab.") : null,
         h("div", { class: "row" }, add), err));
       if (window.STANDALONE) main.append(backupCard());
       main.append(celebrationCard());
-      main.append(typesCard());
-      main.append(weightingCard());
-      if (ui.scrollTypes) { ui.scrollTypes = false; setTimeout(() => { const el = document.getElementById("types"); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); }, 50); }
+
     }
   }
 
@@ -1511,7 +1510,7 @@ a.btn { text-decoration: none; display: inline-block; }
     bar.append(fill, h("div", { class: "dmark", style: `left:${100 * g.target / scale}%` }, h("span", null, shortVal(g.target, g.metric).replace(" goal km", ""))));
     const label = sel === t ? "Today" : fmtDay(sel);
     card.append(h("h2", null, label, h("span", { class: "right" }, `Target ${metricFmt(g.target, g.metric)} a day`)),
-      ...(g.metric === "wkm" ? [h("p", { class: "basis" }, h("b", null, "Based on weighted goal km: "), "actual km × your activity weight × conditions (wind). ", h("a", { href: "#goals" }, "See weights"))] : []),
+      ...(g.metric === "wkm" ? [h("p", { class: "basis" }, h("b", null, "Based on weighted goal km: "), "actual km × your activity weight × conditions (wind). ", h("a", { href: "#settings" }, "See weights"))] : []),
       h("div", { class: "dhead" },
         h("span", { class: "dbig" }, shortVal(v, g.metric).replace(" goal km", ""), h("small", null, ` of ${shortVal(g.target, g.metric)}`)),
         h("span", { class: "dstate" + (done ? " ok" : "") }, done ? `Done ✓ +${shortVal(v - g.target, g.metric)} over` : `${shortVal(g.target - v, g.metric)} to go`)),
@@ -1579,7 +1578,7 @@ a.btn { text-decoration: none; display: inline-block; }
     const fmtS = (d) => parseYmd(d).toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short" });
     card.append(h("h2", null, "This week", h("span", { class: "right" }, `Target ${metricFmt(g.target, g.metric)} a week`)),
       h("p", { class: "basis", style: "margin-top:-6px" }, `${fmtS(ws)} – ${fmtS(we)}`),
-      ...(g.metric === "wkm" ? [h("p", { class: "basis" }, h("b", null, "Based on weighted goal km: "), "actual km × your activity weight × conditions (wind). ", h("a", { href: "#goals" }, "See weights"))] : []),
+      ...(g.metric === "wkm" ? [h("p", { class: "basis" }, h("b", null, "Based on weighted goal km: "), "actual km × your activity weight × conditions (wind). ", h("a", { href: "#settings" }, "See weights"))] : []),
       h("div", { class: "dhead" },
         h("span", { class: "dbig" }, shortVal(v, g.metric).replace(" goal km", ""), h("small", null, ` of ${shortVal(g.target, g.metric)}`)),
         h("span", { class: "dstate" + (done ? " ok" : "") }, done ? `Done ✓ +${shortVal(v - g.target, g.metric)} over` : `${shortVal(g.target - v, g.metric)} to go · ${daysLeft <= 1 ? "last day" : daysLeft + " days left"}`)),
@@ -1727,6 +1726,12 @@ a.btn { text-decoration: none; display: inline-block; }
     return card;
   }
 
+  function viewSettings(main) {
+    if (!canWrite || !me) { main.append(h("div", { class: "card" }, h("h2", null, "Settings"), h("div", { class: "notice" }, "You need edit access to change settings."))); return; }
+    main.append(typesCard());
+    main.append(weightingCard());
+    if (ui.scrollTypes) { ui.scrollTypes = false; setTimeout(() => { const el = document.getElementById("types"); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); }, 50); }
+  }
   function viewCrew(main) {
     const t = today();
     const [from, to] = periodRange(ui.crewPeriod, t);
@@ -1951,7 +1956,7 @@ a.btn { text-decoration: none; display: inline-block; }
   }
 
   // ---------- routing & start ----------
-  const VIEWS = window.STANDALONE ? ["log", "stats", "goals", "import"] : ["log", "stats", "goals", "crew", "import"];
+  const VIEWS = window.STANDALONE ? ["log", "stats", "goals", "import", "settings"] : ["log", "stats", "goals", "crew", "import", "settings"];
   function fromHash() { const v = location.hash.replace("#", ""); return VIEWS.includes(v) ? v : "log"; }
   window.addEventListener("hashchange", () => { const v = fromHash(); if (v !== view) { view = v; render(); window.scrollTo(0, 0); } });
   view = fromHash();
