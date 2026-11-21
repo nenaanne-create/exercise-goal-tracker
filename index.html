@@ -685,7 +685,11 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
   let readyTimer = null;
   function markReady() { if (!ready) { ready = true; clearTimeout(readyTimer); setStatus(window.STANDALONE ? "Saved on this device" : canWrite ? "Synced" : "View only"); scheduleRender(); } }
   let renderQueued = false;
-  function scheduleRender() { if (renderQueued) return; renderQueued = true; requestAnimationFrame(() => { renderQueued = false; render(); }); }
+  function scheduleRender() {
+    if (renderQueued) return; renderQueued = true;
+    const run = () => { if (!renderQueued) return; renderQueued = false; render(); };
+    requestAnimationFrame(run); setTimeout(run, 120); // timer fallback: frames pause while the page is in the background
+  }
 
   async function ensureMyDoc() {
     const m = members.get(me);
