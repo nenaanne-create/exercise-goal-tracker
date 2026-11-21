@@ -668,7 +668,7 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
     if (m && m.doc) return;
     const ref = db.doc(`sessions/${me}`);
     const snap = await ref.get();
-    if (!snap.exists) await ref.set({ joinedAt: Date.now(), goals: window.STANDALONE ? [{ id: "daily15", activity: "All", metric: "wkm", period: "day", target: 15 }] : [], ...(window.STANDALONE ? { dailyDefaulted: true } : {}) });
+    if (!snap.exists) await ref.set({ joinedAt: Date.now(), goals: window.STANDALONE ? [{ id: "weekly15", activity: "All", metric: "wkm", period: "week", target: 15 }] : [], ...(window.STANDALONE ? { dailyDefaulted: true, weeklyDefaulted: true } : {}) });
   }
   function writeFailed(e) {
     if (e && e.code === "invalid_argument") { canWrite = false; setStatus("View only: you can't add sessions here."); }
@@ -788,21 +788,23 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
     if (!ready || !me || !canWrite || document.querySelector(".celebrate")) return;
     const m = members.get(me); if (!m || !m.doc) return;
     const g = dailyGoal(); if (!g) return;
-    const t = today();
-    if (m.doc.celebrated === t || ui.celebratedLocal === t) return;
+    const t = today(), key = celebKey(g, t);
+    if (m.doc.celebrated === key || ui.celebratedLocal === key) return;
     const list = [...m.sessions.values()];
-    const v = dayVal(list, t, g);
+    const v = goalVal(list, g, t);
     if (v < g.target - 1e-9) return;
-    ui.celebratedLocal = t;
+    ui.celebratedLocal = key;
     showCelebration(g, v, list, t);
-    saveSettings({ celebrated: t }).catch(() => {});
+    saveSettings({ celebrated: key }).catch(() => {});
   }
   function showCelebration(g, v, list, t) {
-    const parts = partsFor(list, t, g).sort((a, b) => b[1] - a[1]);
+    const [rf, rt] = goalRange(g, t);
+    const parts = rangeParts(list, rf, rt, g).sort((a, b) => b[1] - a[1]);
     const top = parts.length ? parts[0][0] : null;
-    const actual = totals(list, t, t, g.activity);
-    const streak = targetStreaks(list, g, t).current;
-    const milestone = [7, 30, 100, 365].includes(streak);
+    const actual = totals(list, rf, rt, g.activity);
+    const streak = goalStreaks(list, g, t).current;
+    const wk = isWeek(g);
+    const milestone = wk ? [4, 12, 26, 52].includes(streak) : [7, 30, 100, 365].includes(streak);
     const over = v - g.target;
     const prevFocus = document.activeElement;
     const close = () => { ov.remove(); document.removeEventListener("keydown", onKey); if (prevFocus && prevFocus.focus) try { prevFocus.focus(); } catch {} };
@@ -816,10 +818,10 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
       h("h2", { id: "cel-title", class: "ctitle" }, "Goal met! 🎉"),
       h("p", { class: "cline" }, cheerLine(top)),
       h("div", { class: "cstats" },
-        h("div", null, h("b", null, shortVal(v, g.metric).replace(" goal km", "")), h("span", null, g.metric === "wkm" ? "goal km today" : "today")),
+        h("div", null, h("b", null, shortVal(v, g.metric).replace(" goal km", "")), h("span", null, (g.metric === "wkm" ? "goal km " : "") + (wk ? "this week" : "today"))),
         g.metric === "wkm" ? h("div", null, h("b", null, fmtKm(actual.km)), h("span", null, "km actual")) : null,
         h("div", null, h("b", { class: "plus" }, over > 0.05 ? "+" + shortVal(over, g.metric).replace(" goal km", "") : "✓"), h("span", null, over > 0.05 ? "over target" : "right on target"))),
-      streak >= 2 ? h("div", { class: "streakb" + (milestone ? " gold" : "") }, milestone ? `🏆 ${streak}-day milestone!` : `🔥 ${streak} days in a row`) : null,
+      streak >= 2 ? h("div", { class: "streakb" + (milestone ? " gold" : "") }, milestone ? `🏆 ${streak}-${wk ? "week" : "day"} milestone!` : `🔥 ${streak} ${wk ? "weeks" : "days"} in a row`) : null,
       ok);
     const ov = h("div", { class: "celebrate", onclick: close }, box);
     document.body.append(ov);
@@ -861,9 +863,9 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
   function celebrationCard() {
     const on = soundOn();
     return h("div", { class: "card" }, h("h2", null, "Celebrations"),
-      h("p", { class: "small muted", style: "margin:0" }, "When you reach your daily target you get a celebration, once per day. The sound follows your phone's media volume."),
+      h("p", { class: "small muted", style: "margin:0" }, "When you reach your target you get a celebration: once per day for a daily target, once per week for a weekly one. The sound follows your phone's media volume."),
       h("div", { class: "row" }, h("button", { class: "btn", type: "button", "aria-pressed": String(on), onclick: () => { setSound(!on); if (!on) { unlockAudio(); setTimeout(playCheer, 60); } render(); } }, on ? "🔊 Sound on" : "🔇 Sound off"),
-        h("button", { class: "btn ghost", type: "button", onclick: () => { const g = dailyGoal() || { activity: "All", metric: "wkm", period: "day", target: 15 }; const t = today(); const list = [...mine().values()]; unlockAudio(); showCelebration(g, Math.max(dayVal(list, t, g), g.target + 2.4), list, t); } }, "Preview")));
+        h("button", { class: "btn ghost", type: "button", onclick: () => { const g = dailyGoal() || { activity: "All", metric: "wkm", period: "week", target: 15 }; const t = today(); const list = [...mine().values()]; unlockAudio(); showCelebration(g, Math.max(goalVal(list, g, t), g.target + 2.4), list, t); } }, "Preview")));
   }
 
   function actPicker(cur, onPick) {
@@ -1004,10 +1006,11 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
     const tile = (k, tot, extra) => h("div", { class: "tile" }, h("span", { class: "k" }, k), h("span", { class: "v" }, fmtKm(tot.km), h("small", null, "km")), h("span", { class: "s" }, `${fmtDuration(tot.min)} · ${tot.sessions} session${tot.sessions === 1 ? "" : "s"}`), extra);
     const dg = dailyGoal();
     if (ready) main.append(dailySummary(list, dg, t));
-    const ts = dg ? targetStreaks(list, dg, t) : null;
+    const ts = dg ? goalStreaks(list, dg, t) : null;
+    const unitW = isWeek(dg) ? "week" : "day";
     main.append(h("div", { class: "grid g4" }, tile("Today", tt), tile("This week", tw), tile("This month", tm),
-      ts ? h("div", { class: "tile" }, h("span", { class: "k" }, "Target streak"), h("span", { class: "v" }, ts.current, h("small", null, ts.current === 1 ? "day" : "days")),
-          h("span", { class: "s" }, ts.hitToday || !ts.current ? `Best ${ts.best} · days hitting ${shortVal(dg.target, dg.metric)}` : "Hit today's target to keep it going"))
+      ts ? h("div", { class: "tile" }, h("span", { class: "k" }, "Target streak"), h("span", { class: "v" }, ts.current, h("small", null, ts.current === 1 ? unitW : unitW + "s")),
+          h("span", { class: "s" }, ts.hitToday || !ts.current ? `Best ${ts.best} · ${unitW}s hitting ${shortVal(dg.target, dg.metric)}` : `Hit this ${unitW}'s target to keep it going`))
         : h("div", { class: "tile" }, h("span", { class: "k" }, "Streak"), h("span", { class: "v" }, st.current, h("small", null, st.current === 1 ? "day" : "days")),
           h("span", { class: "s" }, st.loggedToday || !st.current ? `Best ${st.best}` : "Log today to keep it going"))));
 
@@ -1228,9 +1231,29 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
 
   // ----- daily target summary -----
   function dailyGoal() {
-    const gs = myGoals().filter(g => g.period === "day");
-    return gs.find(g => g.activity === "All" && g.metric === "wkm") || gs.find(g => g.activity === "All") || gs[0] || null;
+    const pick = (gs) => gs.find(g => g.activity === "All" && g.metric === "wkm") || gs.find(g => g.activity === "All") || gs[0] || null;
+    const all = myGoals();
+    return pick(all.filter(g => g.period === "day")) || pick(all.filter(g => g.period === "week"));
   }
+  const isWeek = (g) => g && g.period === "week";
+  const goalRange = (g, t) => (isWeek(g) ? [weekStart(t), addDays(weekStart(t), 6)] : [t, t]);
+  const goalVal = (list, g, t) => { const [f, to] = goalRange(g, t); return metricVal(totals(list, f, to, g.activity), g.metric); };
+  const celebKey = (g, t) => (isWeek(g) ? "W" + weekStart(t) : t);
+  function rangeParts(list, f, to, g) {
+    const acts = g.activity === "All" ? actsIn(list) : [g.activity];
+    return acts.map(a => [a, metricVal(totals(list, f, to, a), g.metric)]).filter(([, v]) => v > 0);
+  }
+  function weekStreaks(list, g, t) {
+    const hitW = (ws) => metricVal(totals(list, ws, addDays(ws, 6), g.activity), g.metric) >= g.target - 1e-9;
+    const thisW = weekStart(t);
+    let cur = 0, w = hitW(thisW) ? thisW : addDays(thisW, -7), guard = 0;
+    while (hitW(w) && guard++ < 520) { cur++; w = addDays(w, -7); }
+    const weeks = [...new Set(list.filter(s => s.date).map(s => weekStart(s.date)))].sort();
+    let best = 0, run = 0, prev = null;
+    for (const ws of weeks) { if (!hitW(ws)) { run = 0; prev = ws; continue; } run = prev && addDays(prev, 7) === ws && run ? run + 1 : 1; best = Math.max(best, run); prev = ws; }
+    return { current: cur, best: Math.max(best, cur), hitToday: hitW(thisW) };
+  }
+  const goalStreaks = (list, g, t) => (isWeek(g) ? weekStreaks(list, g, t) : targetStreaks(list, g, t));
   const shortVal = (v, m) => (m === "wkm" ? fmtKm(v) + " goal km" : m === "km" ? fmtKm(v) + " km" : m === "hours" ? fmtDuration(v * 60) : String(Math.round(v)));
   const dayVal = (list, d, g) => metricVal(totals(list, d, d, g.activity), g.metric);
   function targetStreaks(list, g, t) {
@@ -1249,12 +1272,13 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
     return acts.map(a => [a, metricVal(totals(list, d, d, a), g.metric)]).filter(([, v]) => v > 0);
   }
   function dailySummary(list, g, t) {
+    if (isWeek(g)) return weeklySummary(list, g, t);
     const card = h("div", { class: "card daily" });
     if (!g) {
-      card.append(h("h2", null, "Daily target"), h("p", { class: "small muted", style: "margin:0" }, "Set a daily target to track every day against it, across all activities."));
+      card.append(h("h2", null, "Weekly target"), h("p", { class: "small muted", style: "margin:0" }, "Set a target to track your week against it, across all activities."));
       if (canWrite && me) {
-        const b = h("button", { class: "btn primary", type: "button" }, "Set 15 goal km a day");
-        b.addEventListener("click", async () => { b.disabled = true; try { await saveGoals([...myGoals(), cleanGoal({ id: String(Date.now()), activity: "All", metric: "wkm", period: "day", target: 15 })]); } catch (e) { b.disabled = false; writeFailed(e); } });
+        const b = h("button", { class: "btn primary", type: "button" }, "Set 15 goal km a week");
+        b.addEventListener("click", async () => { b.disabled = true; try { await saveGoals([...myGoals(), cleanGoal({ id: String(Date.now()), activity: "All", metric: "wkm", period: "week", target: 15 })]); } catch (e) { b.disabled = false; writeFailed(e); } });
         card.append(h("div", { class: "row" }, b, h("a", { href: "#goals", class: "small" }, "Or choose your own in Goals")));
       }
       return card;
@@ -1321,6 +1345,59 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
     return card;
   }
 
+  function weeklySummary(list, g, t) {
+    const card = h("div", { class: "card daily" });
+    const ws = weekStart(t), we = addDays(ws, 6);
+    const v = goalVal(list, g, t), tot = totals(list, ws, we, g.activity);
+    const done = v >= g.target - 1e-9;
+    const scale = Math.max(g.target, v) || 1;
+    const parts = rangeParts(list, ws, we, g);
+    const bar = h("div", { class: "dbar" + (done ? " hit" : ""), role: "progressbar", "aria-valuenow": String(Math.round(v * 10) / 10), "aria-valuemin": "0", "aria-valuemax": String(g.target), "aria-label": `${shortVal(v, g.metric)} of ${shortVal(g.target, g.metric)} this week` });
+    const fill = h("div", { class: "dfill" });
+    for (const [a, x] of parts) fill.append(h("span", { style: `width:${100 * x / scale}%;background:${acol(a)}`, title: `${a}: ${shortVal(x, g.metric)}` }));
+    bar.append(fill, h("div", { class: "dmark", style: `left:${100 * g.target / scale}%` }, h("span", null, shortVal(g.target, g.metric).replace(" goal km", ""))));
+    const daysLeft = Math.round((parseYmd(we) - parseYmd(t)) / 864e5);
+    const fmtS = (d) => parseYmd(d).toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short" });
+    card.append(h("h2", null, "This week", h("span", { class: "right" }, `Target ${metricFmt(g.target, g.metric)} a week`)),
+      h("p", { class: "basis", style: "margin-top:-6px" }, `${fmtS(ws)} – ${fmtS(we)}`),
+      ...(g.metric === "wkm" ? [h("p", { class: "basis" }, h("b", null, "Based on weighted goal km: "), "actual km × your activity weight × conditions (wind). ", h("a", { href: "#goals" }, "See weights"))] : []),
+      h("div", { class: "dhead" },
+        h("span", { class: "dbig" }, shortVal(v, g.metric).replace(" goal km", ""), h("small", null, ` of ${shortVal(g.target, g.metric)}`)),
+        h("span", { class: "dstate" + (done ? " ok" : "") }, done ? `Done ✓ +${shortVal(v - g.target, g.metric)} over` : `${shortVal(g.target - v, g.metric)} to go · ${daysLeft === 0 ? "last day" : daysLeft + " day" + (daysLeft === 1 ? "" : "s") + " left"}`)),
+      bar,
+      h("div", { class: "breakdown" },
+        h("span", null, h("b", null, `${fmtKm(tot.km)} km actual`), ` · ${fmtDuration(tot.min)} · ${tot.sessions} session${tot.sessions === 1 ? "" : "s"}`),
+        parts.map(([a, x]) => { const at = totals(list, ws, we, a); return h("span", null, h("span", { class: "dot", style: `--ac:${acol(a)};margin-right:5px;width:8px;height:8px` }), at.km ? `${a} ${fmtKm(at.km)} km → ${shortVal(x, g.metric).replace(" goal km", "")}` : `${a} ${fmtDuration(at.min)} → ${shortVal(x, g.metric).replace(" goal km", "")}`); })));
+    // each day of the week: actual km (by activity) beside goal km, building towards the weekly total
+    const days = []; for (let i = 0; i < 7; i++) days.push(addDays(ws, i));
+    const vals = days.map(d => (d > t ? null : metricVal(totals(list, d, d, g.activity), g.metric)));
+    const actuals = days.map(d => (d > t ? null : totals(list, d, d, g.activity).km));
+    const pair = g.metric === "wkm";
+    const dScale = Math.max(1, ...vals.filter(x => x != null), ...(pair ? actuals.filter(x => x != null) : []));
+    const strip = h("div", { class: "week", role: "group", "aria-label": "Each day this week" });
+    const ticks = [0, dScale];
+    const unit = g.metric === "wkm" ? ["goal", "km"] : g.metric === "km" ? ["km", ""] : g.metric === "hours" ? ["time", ""] : ["sess.", ""];
+    strip.append(h("div", { class: "waxis", "aria-hidden": "true" }, h("span", { class: "wval" }, ""),
+      h("div", { class: "axtube" }, ticks.map(x => h("span", { class: "tick", style: `bottom:${100 * x / dScale}%` }, String(+x.toFixed(1))))),
+      h("span", { class: "wlbl" }, unit[0]), h("span", { class: "wdate" }, unit[1] || "\u00a0")));
+    days.forEach((d, i) => {
+      const val = vals[i]; const future = val == null;
+      const col = h("div", { class: "wday" + (d === t ? " sel" : "") + (future ? " future" : ""), "aria-label": `${parseYmd(d).toLocaleDateString("en-AU", { weekday: "long" })}: ${future ? "not yet" : shortVal(val, g.metric) + (pair ? `, ${fmtKm(actuals[i])} km actual` : "")}` });
+      const tube = h("div", { class: "tube" + (pair ? " pair" : "") });
+      if (!future && pair) {
+        const actBar = h("div", { class: "pbar pact", style: `height:${100 * actuals[i] / dScale}%` });
+        for (const [a, km] of (g.activity === "All" ? actsIn(list) : [g.activity]).map(a => [a, totals(list, d, d, a).km]).filter(([, km]) => km > 0)) actBar.append(h("span", { title: `${a}: ${fmtKm(km)} km`, style: `height:${100 * km / (actuals[i] || 1)}%;background:${acol(a)}` }));
+        tube.append(actBar, h("div", { class: "pbar pwgt", title: `${fmtKm(val)} goal km`, style: `height:${100 * val / dScale}%` }));
+      } else if (!future) { const f = h("div", { class: "tfill" }); for (const [a, x] of partsFor(list, d, g)) f.append(h("span", { style: `height:${100 * x / dScale}%;background:${acol(a)}` })); tube.append(f); }
+      col.append(h("span", { class: "wval" }, future ? "" : val > 0 ? fmtKm(val) : "–"), tube, h("span", { class: "wlbl" }, parseYmd(d).toLocaleDateString("en-AU", { weekday: "short" }).slice(0, 3)), h("span", { class: "wdate" }, `${parseYmd(d).getDate()}/${parseYmd(d).getMonth() + 1}`));
+      strip.append(col);
+    });
+    const active = vals.filter(x => x != null && x > 0).length;
+    card.append(h("div", { class: "lbl", style: "margin-top:4px" }, "Each day this week"), strip,
+      ...(pair ? [h("div", { class: "legend" }, h("span", null, h("i", { class: "sw2 sact" }), "Actual km (by activity)"), h("span", null, h("i", { class: "sw2 swgt" }), "Goal km (weighted)"))] : []),
+      h("div", { class: "breakdown" }, h("span", null, h("b", null, `${active} active day${active === 1 ? "" : "s"}`)), h("span", null, done ? `Weekly target reached ✓` : `${shortVal(g.target - v, g.metric)} still to go this week`)));
+    return card;
+  }
   function weightedParts(list, from, to, g) {
     const acts = g.activity === "All" ? actsIn(list) : [g.activity];
     return acts.map(a => [a, totals(list, from, to, a)]).filter(([, x]) => x.sessions && x.wkm > 0);
@@ -1683,7 +1760,14 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
         try {
           const ref = db.doc(`sessions/${me}`); const snap = await ref.get();
           if (!snap.exists) await ensureMyDoc();
-          else { const d = snap.data() || {}; if (!d.dailyDefaulted) { const goals = Array.isArray(d.goals) ? d.goals : []; await ref.update({ dailyDefaulted: true, goals: goals.some(g => g && g.period === "day") ? goals : [...goals, { id: "daily15", activity: "All", metric: "wkm", period: "day", target: 15 }] }); } }
+          else {
+            const d = snap.data() || {}; let goals = Array.isArray(d.goals) ? d.goals.slice() : [];
+            if (!d.weeklyDefaulted) {
+              goals = goals.filter(g => !(g && g.id === "daily15")); // the automatic 15-a-day target is replaced by 15 a week
+              if (!goals.some(g => g && (g.period === "week" || g.period === "day"))) goals.push({ id: "weekly15", activity: "All", metric: "wkm", period: "week", target: 15 });
+              await ref.update({ dailyDefaulted: true, weeklyDefaulted: true, goals });
+            }
+          }
         } catch {}
       })();
     }
