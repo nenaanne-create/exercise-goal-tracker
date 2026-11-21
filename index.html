@@ -238,6 +238,8 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
 .basis { margin: -4px 0 0; font-size: 13px; color: var(--muted); }
 .basis b { color: var(--good); font-weight: 600; }
 .wtag { margin-left: 8px; font-size: 11px; font-weight: 600; color: var(--good); border: 1px solid currentColor; border-radius: 4px; padding: 0 5px; vertical-align: 1px; }
+.picprev { width: 100%; max-width: 360px; border-radius: 12px; box-shadow: var(--shadow); align-self: center; }
+a.btn { text-decoration: none; display: inline-block; }
 .btn.gold { align-self: flex-start; background: linear-gradient(135deg, #fff3b0, #f5c542 55%, #d9a514); color: #4a3300; border-color: #d9a514; }
 .nbox { padding-top: 24px; }
 .nring { width: 132px; height: 132px; border-radius: 50%; display: grid; place-items: center; background: conic-gradient(var(--good) calc(var(--p) * 1%), var(--soft) 0); }
@@ -925,6 +927,112 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
     confetti([...new Set([...ACTIVITIES.map(a => cssVar(`--a-${colorKey(a)}`)), "#f5c542", cssVar("--good")])].filter(Boolean));
     playCheer();
   }
+  // ----- picture summary (PNG) to share or save -----
+  const PIC_COLORS = { ride: "#2563eb", paddle: "#0891b2", run: "#ea580c", walk: "#8b5a2b", swim: "#7c3aed", gym: "#c026d3", other: "#6b7280", amber: "#ca8a04", indigo: "#1e3a8a", red: "#dc2626", olive: "#111827", pink: "#ec4899" };
+  const picCol = (a) => PIC_COLORS[colorKey(a)] || "#6b7280";
+  function picPeriod(kind, t) {
+    if (kind === "lastweek") { const ws = addDays(weekStart(t), -7); return { from: ws, to: addDays(ws, 6), label: "Last week", isWeek: true }; }
+    if (kind === "month") { const [f, to] = periodRange("month", t); return { from: f, to, label: parseYmd(f).toLocaleDateString("en-AU", { month: "long", year: "numeric" }), isWeek: false }; }
+    const ws = weekStart(t); return { from: ws, to: addDays(ws, 6), label: "This week", isWeek: true };
+  }
+  async function makeSummaryPng(kind) {
+    try { if (document.fonts && document.fonts.ready) await document.fonts.ready; } catch {}
+    const t = today(), P = picPeriod(kind, t), list = [...mine().values()];
+    const g = dailyGoal(); const goal = g && isWeek(g) && P.isWeek ? g : null;
+    const tot = totals(list, P.from, P.to);
+    const acts = actsIn(list).map(a => [a, totals(list, P.from, P.to, a)]).filter(([, x]) => x.sessions).sort((x, y) => y[1].km - x[1].km);
+    const W = 1080, H = 1350, c = document.createElement("canvas"); c.width = W; c.height = H;
+    const x = c.getContext("2d"); if (!x) throw new Error("no canvas");
+    const DISP = "'Barlow Condensed', 'Arial Narrow', sans-serif", BODY = "'Barlow', 'Segoe UI', system-ui, sans-serif";
+    const INK = "#17212b", MUTED = "#5b6874", SOFT = "#e3ecef", GOOD = "#2e7d4f";
+    const font = (w, px, fam) => { x.font = `${w} ${px}px ${fam || BODY}`; };
+    const rr = (X, Y, w, hh, r) => { x.beginPath(); x.moveTo(X + r, Y); x.arcTo(X + w, Y, X + w, Y + hh, r); x.arcTo(X + w, Y + hh, X, Y + hh, r); x.arcTo(X, Y + hh, X, Y, r); x.arcTo(X, Y, X + w, Y, r); x.closePath(); };
+    // background
+    const bg = x.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, "#0b6e8a"); bg.addColorStop(1, "#0a3d52"); x.fillStyle = bg; x.fillRect(0, 0, W, H);
+    // header
+    x.fillStyle = "#ffffff"; font(700, 46, DISP); x.textBaseline = "alphabetic"; x.fillText("EXERCISE TRACKER", 64, 92);
+    font(600, 30); x.fillStyle = "rgba(255,255,255,.85)";
+    const fmtD = (d, y) => parseYmd(d).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: y ? "numeric" : undefined });
+    x.fillText(P.isWeek ? `${P.label} · ${fmtD(P.from)} – ${fmtD(P.to, true)}` : P.label, 64, 138);
+    // main card
+    const CX = 40, CY = 180, CW = W - 80, CH = H - 260; rr(CX, CY, CW, CH, 36); x.fillStyle = "#ffffff"; x.fill();
+    // goal ring or total
+    const ringX = CX + 200, ringY = CY + 200, R = 140;
+    const val = goal ? metricVal(totals(list, P.from, P.to, goal.activity), goal.metric) : tot.wkm;
+    const pct = goal ? Math.min(1, val / goal.target) : 1, done = goal ? val >= goal.target - 1e-9 : false;
+    x.lineCap = "round"; x.lineWidth = 30; x.strokeStyle = SOFT; x.beginPath(); x.arc(ringX, ringY, R, 0, Math.PI * 2); x.stroke();
+    if (pct > 0) { x.strokeStyle = done ? "#d9a514" : GOOD; x.beginPath(); x.arc(ringX, ringY, R, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * pct); x.stroke(); }
+    x.textAlign = "center"; x.fillStyle = INK; font(700, 92, DISP); x.fillText(fmtKm(val), ringX, ringY + 18);
+    font(600, 24); x.fillStyle = MUTED; x.fillText(goal ? `of ${fmtKm(goal.target)} goal km` : "goal km", ringX, ringY + 58);
+    x.textAlign = "left";
+    // headline + stats beside ring
+    const SX = CX + 400;
+    if (done) { font(700, 52, DISP); x.fillStyle = "#b8860b"; x.fillText("🏆 GOAL MET!", SX, CY + 120); }
+    else if (goal) { font(700, 52, DISP); x.fillStyle = INK; x.fillText(`${Math.round(pct * 100)}% OF TARGET`, SX, CY + 120); }
+    else { font(700, 52, DISP); x.fillStyle = INK; x.fillText("NICE WORK!", SX, CY + 120); }
+    font(500, 28); x.fillStyle = MUTED;
+    x.fillText(done ? `+${fmtKm(val - goal.target)} goal km over target` : goal ? `${fmtKm(goal.target - val)} goal km to go` : `${tot.sessions} session${tot.sessions === 1 ? "" : "s"}`, SX, CY + 164);
+    const stat = (i, big, small) => { const bx = SX + i * 200, by = CY + 210; rr(bx, by, 184, 130, 18); x.fillStyle = SOFT; x.fill(); x.fillStyle = INK; font(700, 52, DISP); x.fillText(big, bx + 18, by + 66); font(600, 20); x.fillStyle = MUTED; x.fillText(small, bx + 18, by + 104); };
+    stat(0, fmtKm(tot.km), "KM ACTUAL"); stat(1, fmtDuration(tot.min), "TIME"); stat(2, String(tot.sessions), "SESSIONS");
+    // activity breakdown
+    let y = CY + 440; font(700, 30, DISP); x.fillStyle = MUTED; x.fillText("BY ACTIVITY", CX + 48, y); y += 22;
+    const maxKm = Math.max(1, ...acts.map(([, a]) => a.km));
+    for (const [a, a2] of acts.slice(0, 4)) {
+      y += 56; font(600, 30); x.fillStyle = INK; x.fillText(a, CX + 48, y);
+      font(600, 28); x.textAlign = "right"; x.fillStyle = MUTED; x.fillText(a2.km ? `${fmtKm(a2.km)} km` : fmtDuration(a2.min), CX + CW - 48, y); x.textAlign = "left";
+      rr(CX + 48, y + 12, CW - 96, 18, 9); x.fillStyle = SOFT; x.fill();
+      const w = Math.max(18, (CW - 96) * (a2.km || 0) / maxKm); rr(CX + 48, y + 12, w, 18, 9); x.fillStyle = picCol(a); x.fill();
+      y += 20;
+    }
+    if (!acts.length) { y += 50; font(500, 28); x.fillStyle = MUTED; x.fillText("No sessions logged yet.", CX + 48, y); }
+    // daily bars
+    y = Math.max(y + 70, CY + 760); font(700, 30, DISP); x.fillStyle = MUTED; x.fillText("EACH DAY", CX + 48, y);
+    const days = []; for (let d = P.from; d <= P.to; d = addDays(d, 1)) days.push(d);
+    const top = y + 30, base = CY + CH - 90, bh = base - top, n = days.length, slot = (CW - 96) / n, bw = Math.min(70, slot * 0.66);
+    const dayKm = days.map(d => totals(list, d, d).km), dMax = Math.max(1, ...dayKm);
+    days.forEach((d, i) => {
+      const bx = CX + 48 + i * slot + (slot - bw) / 2;
+      rr(bx, top, bw, bh, Math.min(10, bw / 3)); x.fillStyle = d > t ? "#f2f5f6" : SOFT; x.fill();
+      let yy = base;
+      for (const a of actsIn(list)) { const km = totals(list, d, d, a).km; if (!km) continue; const hh = bh * km / dMax; x.fillStyle = picCol(a); x.fillRect(bx, yy - hh, bw, hh); yy -= hh; }
+      if (n <= 7) { x.textAlign = "center"; font(600, 26); x.fillStyle = INK; x.fillText(parseYmd(d).toLocaleDateString("en-AU", { weekday: "short" }), bx + bw / 2, base + 38); if (dayKm[i]) { font(700, 26, DISP); x.fillText(fmtKm(dayKm[i]), bx + bw / 2, yy - 10); } x.textAlign = "left"; }
+      else if (i % 7 === 0) { font(500, 20); x.fillStyle = MUTED; x.fillText(String(parseYmd(d).getDate()), bx, base + 30); }
+    });
+    // footer
+    const st = goal ? weekStreaks(list, goal, t).current : 0;
+    font(600, 26); x.fillStyle = "rgba(255,255,255,.9)";
+    x.fillText(st >= 2 ? `🔥 ${st} weeks in a row hitting the target` : (goal ? `Weekly target: ${fmtKm(goal.target)} goal km (weighted)` : "Goal km are weighted by activity"), 64, H - 40);
+    x.textAlign = "right"; font(500, 22); x.fillStyle = "rgba(255,255,255,.7)"; x.fillText(`Made ${fmtD(t, true)}`, W - 64, H - 40); x.textAlign = "left";
+    return await new Promise((res, rej) => c.toBlob(b => (b ? res(b) : rej(new Error("toBlob"))), "image/png"));
+  }
+  function pictureCard() {
+    const S = ui.pic || (ui.pic = { kind: "week", url: null, blob: null, busy: false, err: "" });
+    const card = h("div", { class: "card" }, h("h2", null, "Share a picture"),
+      h("p", { class: "small muted", style: "margin:0" }, "A picture of your progress to share on WhatsApp or Facebook, or save to your photos."),
+      h("div", { class: "seg", role: "group", "aria-label": "Period" }, [["week", "This week"], ["lastweek", "Last week"], ["month", "This month"]].map(([k, l]) =>
+        h("button", { type: "button", "aria-pressed": String(S.kind === k), onclick: () => { S.kind = k; S.url = null; S.blob = null; render(); } }, l))));
+    const make = h("button", { class: "btn primary", type: "button", disabled: S.busy }, S.busy ? "Making picture…" : S.url ? "Make again" : "Make picture");
+    make.addEventListener("click", async () => {
+      S.busy = true; S.err = ""; render();
+      try { const b = await makeSummaryPng(S.kind); if (S.url) URL.revokeObjectURL(S.url); S.blob = b; S.url = URL.createObjectURL(b); }
+      catch { S.err = "Couldn't make the picture on this device."; }
+      S.busy = false; render();
+    });
+    card.append(h("div", { class: "row" }, make));
+    if (S.url) {
+      const name = `exercise-${S.kind}-${today()}.png`;
+      const share = h("button", { class: "btn primary", type: "button" }, "Share");
+      share.addEventListener("click", async () => {
+        try { const f = new File([S.blob], name, { type: "image/png" });
+          if (navigator.canShare && navigator.canShare({ files: [f] })) { await navigator.share({ files: [f], title: "My exercise progress" }); return; } } catch (e) { if (e && e.name === "AbortError") return; }
+        dl.click();
+      });
+      const dl = h("a", { class: "btn", href: S.url, download: name }, "Download");
+      card.append(h("img", { src: S.url, alt: "Picture summary of your exercise", class: "picprev" }), h("div", { class: "row" }, share, dl));
+    }
+    if (S.err) card.append(h("div", { class: "err" }, S.err));
+    return card;
+  }
   function backupCard() {
     const err = h("div", { class: "err" });
     const file = h("input", { type: "file", accept: ".json,application/json", class: "hidden", id: "restore-file" });
@@ -1252,6 +1360,7 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
         h("div", { class: "seg", role: "group", "aria-label": "Measure" }, [["km", "Distance"], ["hours", "Time"]].map(([k, l]) => h("button", { type: "button", "aria-pressed": String(ui.chartMetric === k), onclick: () => { ui.chartMetric = k; render(); } }, l)))));
     const box = h("div", { class: "chartbox" }); const canvas = h("canvas", { "aria-label": "Trend chart" }); box.append(canvas); cc.append(box);
     main.append(cc);
+    main.append(pictureCard());
     if (!list.length) { box.replaceWith(h("div", { class: "empty" }, "Your trend shows here once you've logged some sessions.")); return; }
     if (!window.Chart) { box.replaceWith(h("div", { class: "empty" }, "The chart couldn't load. Reload the page to try again.")); return; }
     // buckets
@@ -1499,7 +1608,9 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
     card.append(h("div", { class: "lbl", style: "margin-top:4px" }, "Each day this week"), strip,
       ...(pair ? [h("div", { class: "legend" }, h("span", null, h("i", { class: "sw2 sact" }), "Actual km (by activity)"), h("span", null, h("i", { class: "sw2 swgt" }), "Goal km (weighted)"))] : []),
       h("div", { class: "breakdown" }, h("span", null, h("b", null, `${active} active day${active === 1 ? "" : "s"}`)), h("span", null, done ? `Weekly target reached ✓` : `${shortVal(g.target - v, g.metric)} still to go this week`)));
-    if (done) card.append(h("button", { class: "btn gold", type: "button", onclick: () => { unlockAudio(); showCelebration(g, v, list, t); } }, "🏆 See your celebration"));
+    card.append(h("div", { class: "row" },
+      done ? h("button", { class: "btn gold", type: "button", onclick: () => { unlockAudio(); showCelebration(g, v, list, t); } }, "🏆 See your celebration") : null,
+      h("a", { class: "btn", href: "#stats", onclick: () => { (ui.pic || (ui.pic = {})).kind = "week"; setTimeout(() => { const el = document.querySelector(".picprev, .card h2"); const cards = [...document.querySelectorAll(".card h2")].find(x => x.textContent === "Share a picture"); cards && cards.scrollIntoView({ behavior: "smooth" }); }, 120); } }, "📷 Share picture")));
     return card;
   }
   function weightedParts(list, from, to, g) {
