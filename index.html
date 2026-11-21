@@ -754,12 +754,12 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
     const mode = nudgeMode();
     if (mode === "off") { ui.nudgeShown = true; return; }
     let last = null; try { last = localStorage.getItem(NUDGE_KEY); } catch {}
-    // once a day: skip if shown today; every open: skip if shown in the last 30 minutes
-    if (mode === "day" ? last === t : (last && /^\d+$/.test(last) && Date.now() - +last < 5 * 60 * 1000)) { ui.nudgeShown = true; return; }
+    // once a day: skip if shown today; every open: skip only quick switches back within a minute
+    if (mode === "day" ? last === t : (last && /^\d+$/.test(last) && Date.now() - +last < 60 * 1000)) { ui.nudgeShown = true; return; }
     const list = [...mine().values()];
     const v = goalVal(list, g, t);
     const m = members.get(me);
-    if (v >= g.target - 1e-9 && m && m.doc && m.doc.celebrated !== celebKey(g, t)) return; // the gold celebration comes first
+    if (v >= g.target - 1e-9) { ui.nudgeShown = true; return; } // target reached: no reminder (the gold celebration takes over)
     ui.nudgeShown = true;
     try { localStorage.setItem(NUDGE_KEY, mode === "day" ? t : String(Date.now())); } catch {}
     showNudge(g, v, list, t);
@@ -960,7 +960,7 @@ tr.duprow.ticked .dupmsg { color: var(--bad); }
         h("button", { class: "btn ghost", type: "button", onclick: () => { document.querySelectorAll(".celebrate").forEach(n => n.remove()); const g = dailyGoal() || { activity: "All", metric: "wkm", period: "week", target: 15 }; const t = today(); const list = [...mine().values()]; showNudge(g, goalVal(list, g, t), list, t); } }, "Preview reminder")),
       h("div", { class: "field", style: "max-width:320px" }, h("label", { for: "nudge-mode" }, "\"Still to go\" reminder"),
         h("select", { id: "nudge-mode", onchange: (e) => { try { localStorage.setItem("et-nudge-mode", e.target.value); localStorage.removeItem(NUDGE_KEY); } catch {} ui.nudgeShown = false; } },
-          [["open", "Every time I open the app"], ["day", "Once a day"], ["off", "Off"]].map(([k, l]) => h("option", { value: k, selected: nudgeMode() === k }, l)))));
+          [["open", "Every time I open the app, until the target is reached"], ["day", "Once a day, until the target is reached"], ["off", "Off"]].map(([k, l]) => h("option", { value: k, selected: nudgeMode() === k }, l)))));
   }
 
   function actPicker(cur, onPick) {
