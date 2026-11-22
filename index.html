@@ -1311,7 +1311,8 @@ a.btn { text-decoration: none; display: inline-block; }
       ui.form = { ...f, app: r.app || "", date: r.date, activity: r.activity, km: r.km != null ? String(r.km) : f.km, dur: r.min != null ? minutesToForm(r.min) : f.dur, notes: r.notes && !f.notes ? r.notes : f.notes, cond: "calm", mult: "" };
       const read = [r.raw || r.activity, r.km != null ? `${r.km} km` : null, r.durText || (r.min != null ? fmtDuration(r.min) : null)].filter(Boolean).join(", ");
       ui.shot = { msg: `Read: ${read || "workout"}. ${r.dateNote}${r.otherPerson ? ` The screenshot shows ${r.person}: only save it if this session is yours.` : ""} Check everything, add conditions, then tap Add session.`, warn: r.otherPerson };
-      render();
+      if (location.hash !== "#log" && location.hash !== "") location.hash = "#log";
+      render(); scrollToForm(); // show the whole Add a session card, ready to check and save
     } catch (e) {
       if (e && e.code === "cancelled") ui.shot = null;
       else ui.shot = { msg: shotErrorText(e) + " You can enter the session by hand.", warn: true };
