@@ -129,6 +129,16 @@ main { max-width: 760px; margin: 0 auto; padding: 14px 16px 24px; display: flex;
 .entry { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 8px; background: var(--bg); border: 0; text-align: left; width: 100%; border-left: 4px solid var(--ac); }
 .entry .name { font-weight: 600; }
 .entry .note { font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fbar { display: flex; flex-direction: column; gap: 10px; background: var(--bg); border-radius: 10px; padding: 10px; }
+.fchips { display: flex; flex-wrap: wrap; gap: 6px; }
+.fchip { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 5px 11px; font-weight: 600; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
+.fchip .dot { width: 9px; height: 9px; }
+.fchip[aria-pressed="true"] { background: var(--ac, var(--accent)); border-color: var(--ac, var(--accent)); color: #fff; }
+.fchip[aria-pressed="true"] .dot { background: #fff; }
+.fgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.fgrid .field select, .fgrid .field input { width: 100%; min-width: 0; }
+@media (max-width: 480px) { .fgrid { grid-template-columns: 1fr 1fr; } }
+.fsum { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: 14px; }
 .entry .srate { color: #e0a800; font-size: 14px; letter-spacing: 1px; line-height: 1.2; }
 .stars { display: flex; align-items: center; gap: 2px; flex-wrap: wrap; }
 .stars .star { border: 0; background: transparent; font-size: 30px; line-height: 1; padding: 2px 3px; color: #d1d5db; }
@@ -1461,8 +1471,34 @@ a.btn { text-decoration: none; display: inline-block; }
     if (!ready) card.append(h("div", { class: "empty" }, "Loading your sessions…"));
     else if (!list.length) card.append(h("div", { class: "empty" }, "No sessions yet. Add one above, or bring in your MapMy history from the Import tab."));
     else {
+      // ----- filters (kept only while the app is open; Reset clears them) -----
+      const F = ui.flt || (ui.flt = { acts: [], rating: "all", range: "all", from: addDays(t, -29), to: t, cond: "all" });
+      const active = F.acts.length || F.rating !== "all" || F.range !== "all" || F.cond !== "all";
+      const ord = (a) => { const i = ACTIVITIES.indexOf(a); return i < 0 ? 999 : i; };
+      const actsHere = [...new Set(list.map(x => x.activity))].sort((a, b) => ord(a) - ord(b) || a.localeCompare(b));
+      const [rf, rt] = F.range === "week" ? [weekStart(t), addDays(weekStart(t), 6)] : F.range === "month" ? periodRange("month", t) : F.range === "custom" ? [F.from <= F.to ? F.from : F.to, F.from <= F.to ? F.to : F.from] : ["0000-00-00", "9999-99-99"];
+      const keep = (x) => (!F.acts.length || F.acts.includes(x.activity)) && (F.rating === "all" || (F.rating === "none" ? !x.rating : x.rating === +F.rating)) && x.date >= rf && x.date <= rt && (F.cond === "all" || x.cond === F.cond);
+      const sel = (id, label, val, opts, on) => h("div", { class: "field" }, h("label", { for: id }, label), h("select", { id, onchange: (e) => { on(e.target.value); ui.showDays = 30; render(); } }, opts.map(([k, l]) => h("option", { value: k, selected: k === val }, l))));
+      const fbar = h("div", { class: "fbar" },
+        h("div", { class: "fchips", role: "group", "aria-label": "Filter by exercise" },
+          h("button", { type: "button", class: "fchip", "aria-pressed": String(!F.acts.length), onclick: () => { F.acts = []; ui.showDays = 30; render(); } }, "All"),
+          actsHere.map(a => h("button", { type: "button", class: "fchip", style: `--ac:${acol(a)}`, "aria-pressed": String(F.acts.includes(a)), onclick: () => { F.acts = F.acts.includes(a) ? F.acts.filter(x => x !== a) : [...F.acts, a]; ui.showDays = 30; render(); } }, h("span", { class: "dot" }), a))),
+        h("div", { class: "fgrid" },
+          sel("flt-rate", "Rating", F.rating, [["all", "Any rating"], ["5", "★★★★★ 5 only"], ["4", "★★★★ 4 only"], ["3", "★★★ 3 only"], ["2", "★★ 2 only"], ["1", "★ 1 only"], ["none", "Not rated"]], v => { F.rating = v; }),
+          sel("flt-date", "Dates", F.range, [["all", "All dates"], ["week", "This week"], ["month", "This month"], ["custom", "Custom range"]], v => { F.range = v; }),
+          sel("flt-cond", "Conditions", F.cond, [["all", "Any conditions"], ...CONDS.map(c => [c.k, c.k === "windy" ? `Windy ×${SET.cond.windy}` : c.k === "verywindy" ? `Very windy ×${SET.cond.verywindy}` : c.l])], v => { F.cond = v; })),
+        F.range === "custom" ? h("div", { class: "fgrid" },
+          h("div", { class: "field" }, h("label", { for: "flt-from" }, "From"), h("input", { id: "flt-from", type: "date", value: F.from, max: t, onchange: (e) => { if (isYmd(e.target.value)) { F.from = e.target.value; render(); } } })),
+          h("div", { class: "field" }, h("label", { for: "flt-to" }, "To"), h("input", { id: "flt-to", type: "date", value: F.to, max: t, onchange: (e) => { if (isYmd(e.target.value)) { F.to = e.target.value; render(); } } }))) : null);
+      const shownList = [...mine()].filter(([, x]) => keep(x));
+      const ft = { km: 0, min: 0 }; for (const [, x] of shownList) { ft.km += x.km || 0; ft.min += x.min || 0; }
+      fbar.append(h("div", { class: "fsum" },
+        h("span", null, h("b", null, `Showing ${shownList.length} of ${list.length}`), ` · ${fmtKm(ft.km)} km · ${fmtDuration(ft.min)}`),
+        h("button", { class: "btn sm" + (active ? " primary" : ""), type: "button", disabled: !active, onclick: () => { ui.flt = null; ui.showDays = 30; render(); } }, "↺ Reset filters")));
+      card.append(fbar);
+      if (!shownList.length) card.append(h("div", { class: "empty" }, "No sessions match these filters. Tap Reset filters to see them all."));
       const byDay = new Map();
-      for (const [id, s] of mine()) { if (!byDay.has(s.date)) byDay.set(s.date, []); byDay.get(s.date).push([id, s]); }
+      for (const [id, s] of shownList) { if (!byDay.has(s.date)) byDay.set(s.date, []); byDay.get(s.date).push([id, s]); }
       const days = [...byDay.keys()].sort().reverse();
       for (const d of days.slice(0, ui.showDays)) {
         const items = byDay.get(d).sort((a, b) => a[1].createdAt - b[1].createdAt);
