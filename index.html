@@ -1407,6 +1407,8 @@ a.btn { text-decoration: none; display: inline-block; }
       });
       const warn = h("div", { class: "notice warn hidden", role: "alert" });
       const btns = h("div", { class: "row" }, save);
+      if (!editing) btns.append(h("button", { class: "btn danger", type: "button", title: "Clear this unsaved session from the form",
+        onclick: () => { const keep = { date: f.date, activity: f.activity }; ui.form = { ...newForm(), ...keep }; ui.shot = null; ui.formDupOk = null; render(); } }, "Remove session"));
       if (editing) {
         btns.append(h("button", { class: "btn", type: "button", onclick: () => { ui.editId = null; ui.form = newForm(); render(); } }, "Cancel"));
         const del = h("button", { class: "btn danger", type: "button", style: "margin-left:auto" }, "Delete");
