@@ -205,6 +205,8 @@ table.t tr.me td { background: var(--soft); }
 .types { display: flex; flex-direction: column; }
 .trow2 { display: grid; grid-template-columns: auto 1fr auto auto auto; gap: 10px; align-items: center; padding: 7px 0; border-top: 1px solid var(--line); }
 .trow2:first-child { border-top: 0; }
+.trow2.hid b { color: var(--muted); }
+.trow2.hid .cbtn { opacity: .45; }
 .addtype { background: var(--soft); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
 .tact { display: flex; gap: 4px; align-items: center; justify-content: flex-end; }
 .tact .mv { min-width: 34px; padding-left: 8px; padding-right: 8px; font-size: 16px; }
@@ -601,7 +603,7 @@ a.btn { text-decoration: none; display: inline-block; }
     const out = [], seen = new Set();
     for (const t of raw.slice(0, 40)) {
       const name = cleanTypeName(t && t.name); if (!name || seen.has(name.toLowerCase())) continue;
-      seen.add(name.toLowerCase()); out.push({ name, color: PALETTE.includes(t.color) ? t.color : (BUILTIN_COLOR[name] || "other") });
+      seen.add(name.toLowerCase()); out.push({ name, color: PALETTE.includes(t.color) ? t.color : (BUILTIN_COLOR[name] || "other"), ...(t.hidden ? { hidden: true } : {}) });
     }
     const oi = out.findIndex(t => t.name.toLowerCase() === "other");
     if (oi >= 0 && oi < out.length - 1) out.push(out.splice(oi, 1)[0]);
@@ -1210,32 +1212,35 @@ a.btn { text-decoration: none; display: inline-block; }
 
   function actPicker(cur, onPick) {
     const used = new Set([...mine().values()].map(x => x.activity));
-    const unused = ACTIVITIES.filter(a => !used.has(a));
+    const shown = TYPES.filter(t => !t.hidden || t.name === cur).map(t => t.name);
+    const unused = shown.filter(a => !used.has(a));
     const editing = !!ui.actEdit;
+    // removing here only hides the exercise from this list: it stays in Settings, where it can be shown again
     const removeTypes = async (names) => {
-      const keep = TYPES.filter(t => !names.includes(t.name));
-      if (!keep.length) return;
+      const next = TYPES.map(t => names.includes(t.name) ? { ...t, hidden: true } : t);
+      const vis = next.filter(t => !t.hidden);
+      if (!vis.length) return;
       try {
-        await saveSettings({ types: keep });
-        if (ui.form && names.includes(ui.form.activity)) ui.form.activity = keep[0].name;
-        if (!keep.some(t => !used.has(t.name))) ui.actEdit = false;
+        await saveSettings({ types: next });
+        if (ui.form && names.includes(ui.form.activity)) ui.form.activity = vis[0].name;
+        if (!vis.some(t => !used.has(t.name))) ui.actEdit = false;
         render();
       } catch (e) { writeFailed(e); }
     };
-    const wrap = h("div", { class: "acts" + (editing ? " editing" : ""), role: "group", "aria-label": "Activity" }, ACTIVITIES.map(a => {
-      const canRemove = editing && !used.has(a) && ACTIVITIES.length > 1;
+    const wrap = h("div", { class: "acts" + (editing ? " editing" : ""), role: "group", "aria-label": "Activity" }, shown.map(a => {
+      const canRemove = editing && !used.has(a) && shown.length > 1;
       return h("button", { class: "act" + (editing && used.has(a) ? " locked" : ""), type: "button", style: `--ac:${acol(a)}`, "aria-pressed": String(!editing && a === cur),
         "aria-label": canRemove ? `Remove ${a}` : null, title: editing && used.has(a) ? "Has sessions, so it can't be removed here" : null,
         onclick: () => { if (canRemove) removeTypes([a]); else if (!editing) onPick(a); } },
         h("span", { class: "dot" }), a, canRemove ? h("span", { class: "x", "aria-hidden": "true" }, "✕") : null);
     }),
-      editing ? null : h("button", { class: "act edit", type: "button", onclick: () => { ui.scrollTypes = true; location.hash = "#settings"; } }, "+ Types"),
+      editing ? null : h("button", { class: "act edit", type: "button", onclick: () => { ui.scrollTypes = true; location.hash = "#settings"; } }, TYPES.some(t => t.hidden) ? `+ Types (${TYPES.filter(t => t.hidden).length} hidden)` : "+ Types"),
       unused.length || editing ? h("button", { class: "act edit", type: "button", "aria-pressed": String(editing), onclick: () => { ui.actEdit = !editing; render(); } }, editing ? "Done" : "− Remove unused") : null);
     if (!editing) return wrap;
     return h("div", { class: "field" }, wrap,
       h("div", { class: "row" },
-        h("span", { class: "hint" }, unused.length ? "Tap ✕ to remove an activity you haven't used. Activities with sessions stay." : "Every activity left has sessions."),
-        unused.length > 1 && unused.length < ACTIVITIES.length ? h("button", { class: "btn ghost sm danger", type: "button", onclick: (e) => { const b = e.currentTarget; if (!b.classList.contains("armed")) { b.classList.add("armed"); b.textContent = `Confirm: remove ${unused.length}`; return; } removeTypes(unused); } }, `Remove all ${unused.length} unused`) : null));
+        h("span", { class: "hint" }, unused.length ? "Tap ✕ to take an exercise you haven't used off this list. It stays in Settings, where you can show it again." : "Every activity left has sessions."),
+        unused.length > 1 && unused.length < shown.length ? h("button", { class: "btn ghost sm danger", type: "button", onclick: (e) => { const b = e.currentTarget; if (!b.classList.contains("armed")) { b.classList.add("armed"); b.textContent = `Confirm: remove ${unused.length}`; return; } removeTypes(unused); } }, `Remove all ${unused.length} unused`) : null));
   }
   // ----- screenshot → form -----
   const LOCAL_SHOT_TYPES = ["image/png", "image/jpeg", "image/webp"];
@@ -1838,11 +1843,19 @@ a.btn { text-decoration: none; display: inline-block; }
         catch (e) { del.disabled = false; err.textContent = "Couldn't delete that type."; writeFailed(e); }
       });
       const shared = TYPES.filter(x => x.color === t.color).length > 1;
-      listEl.append(h("div", { class: "trow2", style: `--ac:${acol(t.name)}` },
+      const vis = h("button", { class: "btn sm " + (t.hidden ? "" : "ghost"), type: "button", "aria-pressed": String(!t.hidden), title: t.hidden ? "Hidden from Add a session. Tap to show it." : "Shown in Add a session. Tap to hide it.",
+        "aria-label": `${t.hidden ? "Show" : "Hide"} ${t.name} in Add a session` }, t.hidden ? "Show" : "Hide");
+      vis.addEventListener("click", async () => {
+        if (!t.hidden && TYPES.filter(x => !x.hidden).length <= 1) { err.textContent = "Keep at least one exercise showing."; return; }
+        vis.disabled = true;
+        try { await save(TYPES.map(x => x.name === t.name ? (t.hidden ? { name: x.name, color: x.color } : { ...x, hidden: true }) : x)); }
+        catch (e) { vis.disabled = false; err.textContent = "Couldn't change that."; writeFailed(e); }
+      });
+      listEl.append(h("div", { class: "trow2" + (t.hidden ? " hid" : ""), style: `--ac:${acol(t.name)}` },
         h("button", { class: "cbtn", type: "button", title: "Change colour", "aria-label": `Change colour of ${t.name} (now ${COLOR_NAME[t.color]})`, "aria-expanded": String(ui.colorFor === t.name), onclick: () => { ui.colorFor = ui.colorFor === t.name ? null : t.name; render(); } }),
-        h("b", null, t.name, shared ? h("span", { class: "hint", style: "margin-left:6px;font-weight:400" }, "same colour as another type") : null),
+        h("b", null, t.name, t.hidden ? h("span", { class: "hint", style: "margin-left:6px;font-weight:400" }, "hidden") : null, shared ? h("span", { class: "hint", style: "margin-left:6px;font-weight:400" }, "same colour as another type") : null),
         h("span", { class: "muted small" }, n ? `${n} session${n === 1 ? "" : "s"}` : "not used yet"),
-        h("span", { class: "muted small" }, `weight ${SET.weights[t.name] ?? 0.5}`), h("span", { class: "tact" }, up, dn, del)));
+        h("span", { class: "muted small" }, `weight ${SET.weights[t.name] ?? 0.5}`), h("span", { class: "tact" }, vis, up, dn, del)));
       if (ui.colorFor === t.name) listEl.append(h("div", { class: "swatches inline", role: "group", "aria-label": `Colour for ${t.name}` }, PALETTE.map(c => h("button", { type: "button", class: "sw", style: `background:var(--a-${c})`, "aria-label": COLOR_NAME[c], title: COLOR_NAME[c] + (TYPES.some(x => x.color === c && x.name !== t.name) ? " (in use)" : ""), "aria-pressed": String(t.color === c),
         onclick: async (e) => { if (c === t.color) { ui.colorFor = null; render(); return; } e.currentTarget.disabled = true; try { await save(TYPES.map(x => x.name === t.name ? { ...x, color: c } : x)); ui.colorFor = null; } catch (er) { err.textContent = "Couldn't change the colour."; writeFailed(er); } } }))));
     });
@@ -1870,7 +1883,14 @@ a.btn { text-decoration: none; display: inline-block; }
       h("div", { class: "field" }, h("span", { class: "lbl" }, "Colour"),
         h("div", { class: "swatches", role: "group", "aria-label": "Colour" }, PALETTE.map(c => h("button", { type: "button", class: "sw", style: `background:var(--a-${c})`, "aria-label": COLOR_NAME[c], title: COLOR_NAME[c] + (TYPES.some(t => t.color === c) ? " (in use)" : ""), "aria-pressed": String(f.color === c), onclick: () => { f.color = c; render(); } })))),
       h("div", { class: "row" }, add), err));
-    card.append(h("div", { class: "lbl" }, "Your exercises"), listEl);
+    const missing = DEFAULT_TYPES.filter(d => !TYPES.some(t => t.name.toLowerCase() === d.name.toLowerCase()));
+    card.append(h("div", { class: "lbl" }, "Your exercises"), h("p", { class: "small muted", style: "margin:0" }, "Hide takes an exercise off Add a session without deleting it. Show puts it back."), listEl);
+    if (missing.length) card.append(h("div", { class: "row" }, h("button", { class: "btn", type: "button", onclick: async (e) => {
+      e.currentTarget.disabled = true;
+      const nt = [...TYPES]; const oi = nt.findIndex(t => t.name.toLowerCase() === "other");
+      for (const m of missing) { if (m.name === "Other") nt.push({ ...m }); else nt.splice(oi >= 0 ? nt.findIndex(t => t.name.toLowerCase() === "other") : nt.length, 0, { ...m }); }
+      try { await save(nt); } catch (er) { err.textContent = "Couldn't bring them back."; writeFailed(er); }
+    } }, `Bring back removed exercises (${missing.map(m => m.name).join(", ")})`)));
     if (orphans.length) card.append(h("p", { class: "hint", style: "margin:0" }, `Sessions from deleted types are kept and still count: ${orphans.join(", ")}. Add the type again to pick it when logging.`));
     return card;
   }
