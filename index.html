@@ -205,6 +205,7 @@ table.t tr.me td { background: var(--soft); }
 .types { display: flex; flex-direction: column; }
 .trow2 { display: grid; grid-template-columns: auto 1fr auto auto auto; gap: 10px; align-items: center; padding: 7px 0; border-top: 1px solid var(--line); }
 .trow2:first-child { border-top: 0; }
+.addtype { background: var(--soft); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
 .tact { display: flex; gap: 4px; align-items: center; justify-content: flex-end; }
 .tact .mv { min-width: 34px; padding-left: 8px; padding-right: 8px; font-size: 16px; }
 .tact .mv:disabled { opacity: .3; }
@@ -1845,13 +1846,11 @@ a.btn { text-decoration: none; display: inline-block; }
       if (ui.colorFor === t.name) listEl.append(h("div", { class: "swatches inline", role: "group", "aria-label": `Colour for ${t.name}` }, PALETTE.map(c => h("button", { type: "button", class: "sw", style: `background:var(--a-${c})`, "aria-label": COLOR_NAME[c], title: COLOR_NAME[c] + (TYPES.some(x => x.color === c && x.name !== t.name) ? " (in use)" : ""), "aria-pressed": String(t.color === c),
         onclick: async (e) => { if (c === t.color) { ui.colorFor = null; render(); return; } e.currentTarget.disabled = true; try { await save(TYPES.map(x => x.name === t.name ? { ...x, color: c } : x)); ui.colorFor = null; } catch (er) { err.textContent = "Couldn't change the colour."; writeFailed(er); } } }))));
     });
-    card.append(listEl);
     const orphans = actsIn(list).filter(a => !ACTIVITIES.includes(a));
-    if (orphans.length) card.append(h("p", { class: "hint", style: "margin:0" }, `Sessions from deleted types are kept and still count: ${orphans.join(", ")}. Add the type again to pick it when logging.`));
 
     // add a type
     const f = ui.typeForm || (ui.typeForm = { name: "", color: PALETTE.find(c => !TYPES.some(t => t.color === c)) || "other", weight: "0.5" });
-    const add = h("button", { class: "btn primary", type: "button" }, "Add type");
+    const add = h("button", { class: "btn primary", type: "button" }, "Add exercise");
     add.addEventListener("click", async () => {
       const name = cleanTypeName(f.name);
       const w = parseFloat(f.weight);
@@ -1864,13 +1863,15 @@ a.btn { text-decoration: none; display: inline-block; }
       await save(nt, { weights: { [name]: w } }); ui.typeForm = null; }
       catch (e) { add.disabled = false; err.textContent = "Couldn't add that type."; writeFailed(e); }
     });
-    card.append(h("div", { class: "lbl" }, "Add a type"),
+    card.append(h("div", { class: "addtype", id: "add-type" }, h("div", { class: "lbl" }, "➕ Add an exercise"),
       h("div", { class: "grid g2" },
         h("div", { class: "field" }, h("label", { for: "t-name" }, "Name"), h("input", { id: "t-name", type: "text", maxlength: "30", placeholder: "e.g. Kayak, Mountain bike", value: f.name, oninput: (e) => { f.name = e.target.value; } })),
         h("div", { class: "field" }, h("label", { for: "t-w" }, "Goal km per km"), h("input", { id: "t-w", type: "number", inputmode: "decimal", min: "0", max: "10", step: "0.1", value: f.weight, oninput: (e) => { f.weight = e.target.value; } }))),
       h("div", { class: "field" }, h("span", { class: "lbl" }, "Colour"),
         h("div", { class: "swatches", role: "group", "aria-label": "Colour" }, PALETTE.map(c => h("button", { type: "button", class: "sw", style: `background:var(--a-${c})`, "aria-label": COLOR_NAME[c], title: COLOR_NAME[c] + (TYPES.some(t => t.color === c) ? " (in use)" : ""), "aria-pressed": String(f.color === c), onclick: () => { f.color = c; render(); } })))),
-      h("div", { class: "row" }, add), err);
+      h("div", { class: "row" }, add), err));
+    card.append(h("div", { class: "lbl" }, "Your exercises"), listEl);
+    if (orphans.length) card.append(h("p", { class: "hint", style: "margin:0" }, `Sessions from deleted types are kept and still count: ${orphans.join(", ")}. Add the type again to pick it when logging.`));
     return card;
   }
 
