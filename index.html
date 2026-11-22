@@ -1630,7 +1630,7 @@ a.btn { text-decoration: none; display: inline-block; }
     const vals = days.map(d => (d > t ? null : dayVal(list, d, g)));
     const pair = g.metric === "wkm"; // show actual km (grey) beside weighted goal km (green)
     const actuals = days.map(d => (d > t ? null : totals(list, d, d, g.activity).km));
-    const wScale = Math.max(g.target, ...vals.filter(x => x != null), ...(pair ? actuals.filter(x => x != null) : [])) || 1;
+    const wScale = niceCeil(Math.max(50, g.target, ...vals.filter(x => x != null), ...(pair ? actuals.filter(x => x != null) : [])) || 1);
     const strip = h("div", { class: "week", role: "group", "aria-label": "This week" });
     // vertical scale: 0, the target, and the top of the scale when a day went well over
     const ticks = [0, g.target]; if (wScale > g.target * 1.2) ticks.push(wScale);
@@ -1669,6 +1669,12 @@ a.btn { text-decoration: none; display: inline-block; }
     return card;
   }
 
+  // round a bar-chart top up to a tidy number so bars visibly grow as km are added (the tallest bar is no longer always full height)
+  function niceCeil(x) {
+    if (!(x > 0)) return 10;
+    const step = x <= 50 ? 10 : x <= 100 ? 20 : x <= 250 ? 50 : 100;
+    return Math.max(step, Math.ceil(x / step - 1e-9) * step);
+  }
   function weeklySummary(list, g, t) {
     const card = h("div", { class: "card daily" });
     const ws = weekStart(t), we = addDays(ws, 6);
@@ -1697,7 +1703,7 @@ a.btn { text-decoration: none; display: inline-block; }
     const vals = days.map(d => (d > t ? null : metricVal(totals(list, d, d, g.activity), g.metric)));
     const actuals = days.map(d => (d > t ? null : totals(list, d, d, g.activity).km));
     const pair = g.metric === "wkm";
-    const dScale = Math.max(1, ...vals.filter(x => x != null), ...(pair ? actuals.filter(x => x != null) : []));
+    const dScale = niceCeil(Math.max(50, ...vals.filter(x => x != null), ...(pair ? actuals.filter(x => x != null) : [])));
     const strip = h("div", { class: "week", role: "group", "aria-label": "Each day this week" });
     const ticks = [0, dScale];
     const unit = g.metric === "wkm" ? ["goal", "km"] : g.metric === "km" ? ["km", ""] : g.metric === "hours" ? ["time", ""] : ["sess.", ""];
