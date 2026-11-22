@@ -813,7 +813,9 @@ a.btn { text-decoration: none; display: inline-block; }
     if (mode === "off") { ui.nudgeShown = true; return; }
     let last = null; try { last = localStorage.getItem(NUDGE_KEY); } catch {}
     // once a day: skip if shown today; every open: skip only quick switches back within a minute
-    if (mode === "day" ? last === t : (last && /^\d+$/.test(last) && Date.now() - +last < 60 * 1000)) { ui.nudgeShown = true; return; }
+    // every open: always on a fresh start of the app; when switching back to it, not if it was shown in the last minute
+    if (mode === "day" ? last === t : (ui.nudgeOnce && last && /^\d+$/.test(last) && Date.now() - +last < 60 * 1000)) { ui.nudgeShown = true; return; }
+    ui.nudgeOnce = true;
     const list = [...mine().values()];
     const v = goalVal(list, g, t);
     const m = members.get(me);
@@ -1000,10 +1002,14 @@ a.btn { text-decoration: none; display: inline-block; }
     const m = members.get(me); if (!m || !m.doc) return;
     const g = dailyGoal(); if (!g) return;
     const t = today(), key = celebKey(g, t);
-    if (m.doc.celebrated === key || ui.celebratedLocal === key) return;
     const list = [...m.sessions.values()];
     const v = goalVal(list, g, t);
+    const before = ui.goalSeen && ui.goalSeen.key === key && ui.goalSeen.target === g.target ? ui.goalSeen.v : null;
+    ui.goalSeen = { key, v, target: g.target };
     if (v < g.target - 1e-9) return;
+    // celebrate the first time this week/day, and again whenever a session you add takes you from under to over the target
+    const crossed = before != null && before < g.target - 1e-9;
+    if (!crossed && (m.doc.celebrated === key || ui.celebratedLocal === key)) return;
     ui.celebratedLocal = key; ui.nudgeShown = true; // the gold popup stands in for the rank popup this time
     document.querySelectorAll(".celebrate").forEach(o => { if (o.querySelector(".nbox")) o.remove(); }); // the gold popup replaces the "km to go" reminder
     showCelebration(g, v, list, t);
