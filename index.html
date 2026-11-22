@@ -1326,7 +1326,9 @@ a.btn { text-decoration: none; display: inline-block; }
     setTimeout(() => {
       const el = document.getElementById("add-session"); if (!el) return;
       const top = el.getBoundingClientRect().top + window.scrollY - 70;
-      window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+      const want = Math.max(0, top);
+      try { window.scrollTo({ top: want, behavior: "smooth" }); } catch { window.scrollTo(0, want); }
+      setTimeout(() => { const now = document.getElementById("add-session"); if (now && Math.abs(now.getBoundingClientRect().top - 70) > 40) window.scrollTo(0, now.getBoundingClientRect().top + window.scrollY - 70); }, 700); // fallback if smooth scrolling didn't run
     }, 60);
   }
   function viewLog(main) {
