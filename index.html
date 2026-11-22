@@ -126,6 +126,11 @@ main { max-width: 760px; margin: 0 auto; padding: 14px 16px 24px; display: flex;
 .entry { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 8px; background: var(--bg); border: 0; text-align: left; width: 100%; border-left: 4px solid var(--ac); }
 .entry .name { font-weight: 600; }
 .entry .note { font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.entry .srate { color: #e0a800; font-size: 14px; letter-spacing: 1px; line-height: 1.2; }
+.stars { display: flex; align-items: center; gap: 2px; flex-wrap: wrap; }
+.stars .star { border: 0; background: transparent; font-size: 30px; line-height: 1; padding: 2px 3px; color: #d1d5db; }
+.stars .star.on { color: #f5b800; text-shadow: 0 1px 2px rgba(180,120,0,.35); }
+.stars .hint { margin-left: 8px; }
 .entry .nums { text-align: right; font-variant-numeric: tabular-nums; font-size: 14px; }
 .entry .nums .p { font-size: 12px; color: var(--muted); }
 .entry[disabled] { cursor: default; }
@@ -651,8 +656,10 @@ a.btn { text-decoration: none; display: inline-block; }
     const cond = CONDS.some(c => c.k === d.cond) ? d.cond : "calm";
     const mult = typeof d.mult === "number" && d.mult >= 0.1 && d.mult <= 5 ? d.mult : 1;
     return { date: isYmd(d.date) ? d.date : null, activity: cleanTypeName(d.activity) || "Other", km, min, cond, mult,
-      notes: typeof d.notes === "string" ? d.notes.slice(0, 500) : "", app: typeof d.app === "string" ? d.app.slice(0, 20) : "", source: d.source === "import" ? "import" : "manual", createdAt: typeof d.createdAt === "number" ? d.createdAt : 0 };
+      notes: typeof d.notes === "string" ? d.notes.slice(0, 500) : "", app: typeof d.app === "string" ? d.app.slice(0, 20) : "", source: d.source === "import" ? "import" : "manual", createdAt: typeof d.createdAt === "number" ? d.createdAt : 0,
+      rating: Number.isInteger(d.rating) && d.rating >= 1 && d.rating <= 5 ? d.rating : 0 };
   }
+  const starsText = (n) => "★".repeat(n) + "☆".repeat(5 - n);
   // ----- weighting -----
   const DEFAULT_WEIGHTS = { Ride: 0.4, Paddle: 0.7, "Paddle ocean": 0.7, "Paddle river": 0.7, Run: 1, Walk: 0.7, Swim: 3, Gym: 0, Other: 0.5 };
   const CONDS = [{ k: "calm", l: "Calm" }, { k: "windy", l: "Windy" }, { k: "verywindy", l: "Very windy" }, { k: "custom", l: "Custom" }];
@@ -1310,7 +1317,7 @@ a.btn { text-decoration: none; display: inline-block; }
     const m = parseDuration(v);
     return m != null && isFinite(m) ? `= ${fmtDuration(m)}` : "Use hours.minutes like 1.25, or minutes like 85";
   }
-  function newForm() { return { date: today(), activity: ACTIVITIES.includes("Ride") ? "Ride" : ACTIVITIES[0], km: "", dur: "", notes: "", cond: "calm", mult: "" }; }
+  function newForm() { return { date: today(), activity: ACTIVITIES.includes("Ride") ? "Ride" : ACTIVITIES[0], km: "", dur: "", notes: "", cond: "calm", mult: "", rating: 0 }; }
   function condPicker(f) {
     const wrap = h("div", { class: "field" }, h("span", { class: "lbl" }, "Conditions"));
     wrap.append(h("div", { class: "seg", role: "group", "aria-label": "Conditions" }, CONDS.map(c => h("button", { type: "button", "aria-pressed": String(f.cond === c.k),
@@ -1361,6 +1368,11 @@ a.btn { text-decoration: none; display: inline-block; }
         h("div", { class: "field" }, h("label", { for: "f-km" }, "Distance (km)"), h("input", { id: "f-km", type: "number", inputmode: "decimal", min: "0", step: "0.01", placeholder: "e.g. 24.5", value: f.km, oninput: (e) => { f.km = e.target.value; } })),
         h("div", { class: "field" }, h("label", { for: "f-dur" }, "Time"), h("input", { id: "f-dur", type: "text", inputmode: "decimal", placeholder: "1.25 or 85", value: f.dur, oninput: (e) => { f.dur = e.target.value; const hint = document.getElementById("f-dur-hint"); if (hint) hint.textContent = durHint(f.dur); } }), h("span", { class: "hint", id: "f-dur-hint" }, durHint(f.dur))),
         h("div", { class: "field" }, h("label", { for: "f-notes" }, "Notes"), h("input", { id: "f-notes", type: "text", maxlength: "500", placeholder: "Route, conditions…", value: f.notes, oninput: (e) => { f.notes = e.target.value; } }))));
+      const RATE_WORDS = ["", "Tough going", "Not great", "OK", "Good", "Brilliant"];
+      const rateHint = h("span", { class: "hint" }, f.rating ? RATE_WORDS[f.rating] : "Tap a star (optional)");
+      const starBtns = [1, 2, 3, 4, 5].map(n => h("button", { type: "button", class: "star" + (n <= (f.rating || 0) ? " on" : ""), "aria-label": `${n} star${n === 1 ? "" : "s"}`, "aria-pressed": String(f.rating === n),
+        onclick: () => { f.rating = f.rating === n ? 0 : n; starBtns.forEach((b, i) => { b.classList.toggle("on", i < f.rating); b.setAttribute("aria-pressed", String(f.rating === i + 1)); }); rateHint.textContent = f.rating ? RATE_WORDS[f.rating] : "Tap a star (optional)"; } }, "★"));
+      card.append(h("div", { class: "field" }, h("label", null, "Rating"), h("div", { class: "stars", role: "group", "aria-label": "Rating out of 5" }, starBtns, rateHint)));
       const save = h("button", { class: "btn primary", type: "button" }, editing ? "Save changes" : "Add session");
       save.addEventListener("click", async () => {
         const km = f.km === "" ? null : parseFloat(f.km);
@@ -1372,7 +1384,7 @@ a.btn { text-decoration: none; display: inline-block; }
         const mult = f.cond === "custom" ? parseFloat(f.mult) : 1;
         if (f.cond === "custom" && !(mult >= 0.1 && mult <= 5)) { err.textContent = "Custom multiplier should be between 0.1 and 5."; return; }
         const prev = ui.editId ? mine().get(ui.editId) : null;
-        const body = { date: f.date, activity: f.activity, km: km || null, min: min || null, cond: f.cond, mult, notes: f.notes.trim().slice(0, 500), app: f.app || (prev ? prev.app : "") || "", source: prev ? prev.source : "manual", createdAt: prev ? prev.createdAt : Date.now() };
+        const body = { date: f.date, activity: f.activity, km: km || null, min: min || null, cond: f.cond, mult, notes: f.notes.trim().slice(0, 500), app: f.app || (prev ? prev.app : "") || "", source: prev ? prev.source : "manual", createdAt: prev ? prev.createdAt : Date.now(), rating: f.rating || 0 };
         const already = findLogged(body, ui.editId);
         const sig = JSON.stringify([body.date, body.activity, body.km, body.min]);
         if (already && ui.formDupOk !== sig) {
@@ -1416,9 +1428,9 @@ a.btn { text-decoration: none; display: inline-block; }
         card.append(h("div", { class: "day" },
           h("div", { class: "dayhead" }, h("b", null, fmtDay(d)), h("span", { class: "tot" }, `${fmtKm(tot.km)} km · ${fmtDuration(tot.min)}`)),
           items.map(([id, s]) => h("button", { class: "entry", type: "button", style: `--ac:${acol(s.activity)}`, disabled: !canWrite, "aria-label": `Edit ${s.activity} on ${fmtDay(d)}`,
-            onclick: () => { ui.editId = id; ui.form = { date: s.date, activity: s.activity, km: s.km != null ? String(s.km) : "", dur: s.min != null ? (s.min >= 60 ? `${Math.floor(Math.round(s.min) / 60)}.${String(Math.round(s.min) % 60).padStart(2, "0")}` : String(Math.round(s.min))) : "", notes: s.notes, cond: s.cond, mult: s.cond === "custom" ? String(s.mult) : "" }; render(); scrollToForm(); } },
+            onclick: () => { ui.editId = id; ui.form = { date: s.date, activity: s.activity, km: s.km != null ? String(s.km) : "", dur: s.min != null ? (s.min >= 60 ? `${Math.floor(Math.round(s.min) / 60)}.${String(Math.round(s.min) % 60).padStart(2, "0")}` : String(Math.round(s.min))) : "", notes: s.notes, cond: s.cond, mult: s.cond === "custom" ? String(s.mult) : "", rating: s.rating || 0 }; render(); scrollToForm(); } },
             h("span", { class: "dot" }),
-            h("span", { style: "min-width:0" }, h("div", { class: "name" }, s.activity, s.app ? h("span", { class: "apptag" }, s.app) : null, condLabel(s) ? h("span", { class: "cond" }, condLabel(s)) : null), s.notes ? h("div", { class: "note" }, s.notes) : null),
+            h("span", { style: "min-width:0" }, h("div", { class: "name" }, s.activity, s.app ? h("span", { class: "apptag" }, s.app) : null, condLabel(s) ? h("span", { class: "cond" }, condLabel(s)) : null), s.rating ? h("div", { class: "srate", "aria-label": `Rated ${s.rating} out of 5` }, starsText(s.rating)) : null, s.notes ? h("div", { class: "note" }, s.notes) : null),
             h("span", { class: "nums" }, h("div", null, s.km != null ? `${fmtKm(s.km)} km` : "", s.km != null && s.min != null ? " · " : "", s.min != null ? fmtDuration(s.min) : ""), h("div", { class: "p" }, pace(s.activity, s.km, s.min)))))));
       }
       if (days.length > ui.showDays) card.append(h("button", { class: "btn", type: "button", onclick: () => { ui.showDays += 30; render(); } }, `Show older days (${days.length - ui.showDays} more)`));
