@@ -1321,6 +1321,14 @@ a.btn { text-decoration: none; display: inline-block; }
     return wrap;
   }
 
+  // bring the Add / Edit session card into view (below the This week card), so you can change the details
+  function scrollToForm() {
+    setTimeout(() => {
+      const el = document.getElementById("add-session"); if (!el) return;
+      const top = el.getBoundingClientRect().top + window.scrollY - 70;
+      window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+    }, 60);
+  }
   function viewLog(main) {
     const list = [...mine().values()];
     const t = today();
@@ -1341,7 +1349,7 @@ a.btn { text-decoration: none; display: inline-block; }
       if (!ui.form) ui.form = newForm();
       const f = ui.form; const editing = !!ui.editId;
       const err = h("div", { class: "err" });
-      const card = h("div", { class: "card" }, h("h2", null, editing ? "Edit session" : "Add a session"));
+      const card = h("div", { class: "card", id: "add-session" }, h("h2", null, editing ? "Edit session" : "Add a session"));
       if (!editing && canReadShots()) card.append(shotRow());
       if (!editing && ui.shot && ui.shot.msg) card.append(h("div", { class: "notice" + (ui.shot.warn ? " warn" : "") }, ui.shot.msg));
       card.append(actPicker(f.activity, (a) => { f.activity = a; render(); }));
@@ -1406,7 +1414,7 @@ a.btn { text-decoration: none; display: inline-block; }
         card.append(h("div", { class: "day" },
           h("div", { class: "dayhead" }, h("b", null, fmtDay(d)), h("span", { class: "tot" }, `${fmtKm(tot.km)} km · ${fmtDuration(tot.min)}`)),
           items.map(([id, s]) => h("button", { class: "entry", type: "button", style: `--ac:${acol(s.activity)}`, disabled: !canWrite, "aria-label": `Edit ${s.activity} on ${fmtDay(d)}`,
-            onclick: () => { ui.editId = id; ui.form = { date: s.date, activity: s.activity, km: s.km != null ? String(s.km) : "", dur: s.min != null ? (s.min >= 60 ? `${Math.floor(Math.round(s.min) / 60)}.${String(Math.round(s.min) % 60).padStart(2, "0")}` : String(Math.round(s.min))) : "", notes: s.notes, cond: s.cond, mult: s.cond === "custom" ? String(s.mult) : "" }; render(); window.scrollTo({ top: 0, behavior: "smooth" }); } },
+            onclick: () => { ui.editId = id; ui.form = { date: s.date, activity: s.activity, km: s.km != null ? String(s.km) : "", dur: s.min != null ? (s.min >= 60 ? `${Math.floor(Math.round(s.min) / 60)}.${String(Math.round(s.min) % 60).padStart(2, "0")}` : String(Math.round(s.min))) : "", notes: s.notes, cond: s.cond, mult: s.cond === "custom" ? String(s.mult) : "" }; render(); scrollToForm(); } },
             h("span", { class: "dot" }),
             h("span", { style: "min-width:0" }, h("div", { class: "name" }, s.activity, s.app ? h("span", { class: "apptag" }, s.app) : null, condLabel(s) ? h("span", { class: "cond" }, condLabel(s)) : null), s.notes ? h("div", { class: "note" }, s.notes) : null),
             h("span", { class: "nums" }, h("div", null, s.km != null ? `${fmtKm(s.km)} km` : "", s.km != null && s.min != null ? " · " : "", s.min != null ? fmtDuration(s.min) : ""), h("div", { class: "p" }, pace(s.activity, s.km, s.min)))))));
