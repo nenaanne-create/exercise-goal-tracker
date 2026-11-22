@@ -102,6 +102,9 @@ main { max-width: 760px; margin: 0 auto; padding: 14px 16px 24px; display: flex;
 .err { color: var(--bad); font-size: 13px; min-height: 0; }
 
 .acts { display: flex; gap: 6px; flex-wrap: wrap; }
+.acts.editing .act { border-style: dashed; }
+.acts.editing .act .x { margin-left: 4px; color: var(--bad); font-weight: 700; }
+.acts.editing .act.locked { opacity: .45; }
 .act { border: 1px solid var(--line); background: var(--bg); border-radius: 999px; padding: 6px 12px; font-weight: 600; font-size: 14px; display: inline-flex; align-items: center; gap: 6px; }
 .act[aria-pressed="true"] { background: var(--ac); border-color: var(--ac); color: #fff; }
 .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ac); flex: none; display: inline-block; }
@@ -1205,9 +1208,33 @@ a.btn { text-decoration: none; display: inline-block; }
   }
 
   function actPicker(cur, onPick) {
-    return h("div", { class: "acts", role: "group", "aria-label": "Activity" }, ACTIVITIES.map(a =>
-      h("button", { class: "act", type: "button", style: `--ac:${acol(a)}`, "aria-pressed": String(a === cur), onclick: () => onPick(a) }, h("span", { class: "dot" }), a)),
-      h("button", { class: "act edit", type: "button", onclick: () => { ui.scrollTypes = true; location.hash = "#settings"; } }, "+ / − Types"));
+    const used = new Set([...mine().values()].map(x => x.activity));
+    const unused = ACTIVITIES.filter(a => !used.has(a));
+    const editing = !!ui.actEdit;
+    const removeTypes = async (names) => {
+      const keep = TYPES.filter(t => !names.includes(t.name));
+      if (!keep.length) return;
+      try {
+        await saveSettings({ types: keep });
+        if (ui.form && names.includes(ui.form.activity)) ui.form.activity = keep[0].name;
+        if (!keep.some(t => !used.has(t.name))) ui.actEdit = false;
+        render();
+      } catch (e) { writeFailed(e); }
+    };
+    const wrap = h("div", { class: "acts" + (editing ? " editing" : ""), role: "group", "aria-label": "Activity" }, ACTIVITIES.map(a => {
+      const canRemove = editing && !used.has(a) && ACTIVITIES.length > 1;
+      return h("button", { class: "act" + (editing && used.has(a) ? " locked" : ""), type: "button", style: `--ac:${acol(a)}`, "aria-pressed": String(!editing && a === cur),
+        "aria-label": canRemove ? `Remove ${a}` : null, title: editing && used.has(a) ? "Has sessions, so it can't be removed here" : null,
+        onclick: () => { if (canRemove) removeTypes([a]); else if (!editing) onPick(a); } },
+        h("span", { class: "dot" }), a, canRemove ? h("span", { class: "x", "aria-hidden": "true" }, "✕") : null);
+    }),
+      editing ? null : h("button", { class: "act edit", type: "button", onclick: () => { ui.scrollTypes = true; location.hash = "#settings"; } }, "+ Types"),
+      unused.length || editing ? h("button", { class: "act edit", type: "button", "aria-pressed": String(editing), onclick: () => { ui.actEdit = !editing; render(); } }, editing ? "Done" : "− Remove unused") : null);
+    if (!editing) return wrap;
+    return h("div", { class: "field" }, wrap,
+      h("div", { class: "row" },
+        h("span", { class: "hint" }, unused.length ? "Tap ✕ to remove an activity you haven't used. Activities with sessions stay." : "Every activity left has sessions."),
+        unused.length > 1 && unused.length < ACTIVITIES.length ? h("button", { class: "btn ghost sm danger", type: "button", onclick: (e) => { const b = e.currentTarget; if (!b.classList.contains("armed")) { b.classList.add("armed"); b.textContent = `Confirm: remove ${unused.length}`; return; } removeTypes(unused); } }, `Remove all ${unused.length} unused`) : null));
   }
   // ----- screenshot → form -----
   const LOCAL_SHOT_TYPES = ["image/png", "image/jpeg", "image/webp"];
