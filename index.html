@@ -326,6 +326,57 @@ a.btn { text-decoration: none; display: inline-block; }
 .dup { color: var(--muted); font-size: 12px; }
 .rank { font: 700 18px var(--f-display); color: var(--muted); width: 26px; display: inline-block; }
 .hidden { display: none !important; }
+/* 7 Day Streak + excused / skipped days */
+.s7 { border-top: 4px solid var(--a-run); }
+.s7head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.s7num { font: 700 44px/1 var(--f-display); font-variant-numeric: tabular-nums; }
+.s7num small { font: 600 15px var(--f-body); color: var(--muted); margin-left: 4px; }
+.s7dots { display: flex; gap: 6px; flex: 1 1 220px; }
+.s7dots span { flex: 1; max-width: 40px; aspect-ratio: 1; border-radius: 50%; background: var(--soft); border: 2px dashed var(--line); display: grid; place-items: center; font: 700 15px var(--f-display); color: var(--muted); }
+.s7dots span.on { background: var(--a-run); border: 2px solid var(--a-run); color: #fff; }
+.s7dots span.on.gold { background: linear-gradient(135deg, #fff3b0, #f5c542 55%, #d9a514); border-color: #d9a514; color: #5a3d00; }
+.s7dots span.next { border-style: solid; border-color: var(--a-run); color: var(--a-run); }
+.s7msg { font-weight: 600; font-size: 16px; margin: 0; }
+.s7msg.paused { color: var(--accent); }
+.bdg { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font: 600 13px var(--f-body); text-transform: none; letter-spacing: 0; padding: 4px 10px; border-radius: 999px; background: linear-gradient(135deg, #fff3b0, #f5c542 55%, #d9a514); color: #5a3d00; }
+.bdg.none { background: var(--soft); color: var(--muted); }
+.recent { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.rday { display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 11px; color: var(--muted); font-weight: 600; }
+.pill { display: inline-flex; align-items: center; justify-content: center; gap: 4px; border-radius: 999px; padding: 2px 9px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.rday .pill { width: 100%; padding: 4px 0; font-size: 14px; }
+.st-exercised { background: color-mix(in srgb, var(--good) 18%, var(--surface)); color: var(--good); }
+.st-excused { background: color-mix(in srgb, var(--accent) 16%, var(--surface)); color: var(--accent); }
+.st-over { background: color-mix(in srgb, var(--a-amber) 22%, var(--surface)); color: var(--ink); }
+.st-skipped { background: color-mix(in srgb, var(--bad) 14%, var(--surface)); color: var(--bad); }
+.st-pending { background: var(--soft); color: var(--muted); }
+.st-future, .st-none { background: transparent; box-shadow: inset 0 0 0 1px var(--line); min-height: 1.9em; }
+.st-none { opacity: .5; }
+.sklist { display: flex; flex-direction: column; gap: 12px; }
+.skwk { display: flex; flex-direction: column; gap: 6px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.skwk:last-child { border-bottom: 0; padding-bottom: 0; }
+.skhead { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 14px; }
+.skres { font-weight: 700; font-size: 13px; color: var(--muted); }
+.skres.won { color: #8a6100; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip { border: 1px solid var(--line); background: var(--bg); border-radius: 999px; padding: 7px 13px; font-weight: 600; font-size: 14px; min-height: 36px; }
+.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.chip:disabled { opacity: .45; cursor: default; }
+.exform { border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 10px; background: var(--bg); }
+.hrows { display: flex; flex-direction: column; gap: 6px; }
+.hrow { display: grid; grid-template-columns: 7.5em minmax(0, 1fr) 2.5em; gap: 8px; align-items: center; font-size: 13px; }
+.hrow .bar { height: 12px; }
+.hrow b { text-align: right; font-variant-numeric: tabular-nums; }
+.sumrow { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; padding: 8px 0; border-top: 1px solid var(--line); }
+.sumrow:first-of-type { border-top: 0; }
+.sumrow .n { font: 700 24px/1 var(--f-display); font-variant-numeric: tabular-nums; }
+.dlist { display: flex; flex-direction: column; }
+.drow { display: grid; grid-template-columns: 8.5em auto minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 9px 0; border-top: 1px solid var(--line); font-size: 14px; }
+.drow:first-child { border-top: 0; }
+.drow > .pill { justify-self: start; }
+.drow .note { color: var(--muted); font-size: 15px; overflow-wrap: anywhere; }
+@media (max-width: 520px) { .drow { grid-template-columns: auto minmax(0, 1fr); } .drow > :nth-child(3) { grid-column: 1 / -1; } .drow > :nth-child(4) { grid-column: 1 / -1; justify-self: start; } }
+.insight { background: color-mix(in srgb, var(--a-amber) 16%, var(--surface)); border-radius: 8px; padding: 9px 12px; font-size: 13px; }
+.build { font-size: 11px; }
 </style>
 </head>
 <body>
@@ -334,10 +385,12 @@ a.btn { text-decoration: none; display: inline-block; }
     <div>
       <h1>Exercise Tracker</h1>
       <div class="status" id="status">Connecting…</div>
+      <div class="status build" id="build">Build 1 · 26 Nov 2026</div>
     </div>
     <nav class="tabs" aria-label="Sections">
       <a href="#log" data-view="log">Log</a>
       <a href="#stats" data-view="stats">Stats</a>
+      <a href="#days" data-view="days">Days</a>
       <a href="#goals" data-view="goals">Goals</a>
       <a href="#import" data-view="import">Import</a>
       <a href="#settings" data-view="settings">Settings</a>
@@ -746,8 +799,14 @@ a.btn { text-decoration: none; display: inline-block; }
   function setStatus(t) { $("status").textContent = t; }
   function subscribeMember(uid) {
     if (members.has(uid) || members.size >= MAX_MEMBERS) return;
-    const m = { doc: null, sessions: new Map(), unsub: null };
+    const m = { doc: null, sessions: new Map(), days: new Map(), unsub: null };
     members.set(uid, m);
+    if (uid === me) try {
+      m.unsubDays = db.collection(`sessions/${uid}/days`).onSnapshot((snap) => {
+        m.days = new Map(snap.docs.map(d => cleanDay(d.data())).filter(x => x.date).map(x => [x.date, x]));
+        scheduleRender();
+      }, () => {});
+    } catch {}
     try {
       m.unsub = db.collection(`sessions/${uid}/items`).onSnapshot((snap) => {
         m.sessions = new Map(snap.docs.map(d => [d.id, cleanSession(d.data())]).filter(([, s]) => s.date));
@@ -797,9 +856,9 @@ a.btn { text-decoration: none; display: inline-block; }
     SET = readSettings(myDocNow);
     const main = $("main"); main.textContent = "";
     if (!db) { main.append(h("div", { class: "card" }, h("div", { class: "empty" }, $("status").textContent))); return; }
-    ({ log: viewLog, stats: viewStats, goals: viewGoals, crew: viewCrew, import: viewImport, settings: viewSettings })[view](main);
+    ({ log: viewLog, stats: viewStats, days: viewDays, goals: viewGoals, crew: viewCrew, import: viewImport, settings: viewSettings })[view](main);
     resolveNames();
-    maybeCelebrate();
+    if (!maybeBadge()) maybeCelebrate();
     maybeNudge();
   }
 
@@ -1395,6 +1454,7 @@ a.btn { text-decoration: none; display: inline-block; }
     const st = streaks(list.map(s => s.date), t);
     const tile = (k, tot, extra) => h("div", { class: "tile" }, h("span", { class: "k" }, k), h("span", { class: "v" }, fmtKm(tot.km), h("small", null, "km")), h("span", { class: "s" }, `${fmtDuration(tot.min)} · ${tot.sessions} session${tot.sessions === 1 ? "" : "s"}`), extra);
     const dg = dailyGoal();
+    if (ready && me) main.append(streakCard());
     if (ready) main.append(dailySummary(list, dg, t));
     const ts = dg ? goalStreaks(list, dg, t) : null;
     const unitW = isWeek(dg) ? "week" : "day";
@@ -1570,6 +1630,10 @@ a.btn { text-decoration: none; display: inline-block; }
         h("tr", { class: "total" }, h("td", null, "Total"), h("td", null, all.sessions), h("td", null, fmtKm(all.km) + " km"), h("td", null, fmtDuration(all.min)))))));
     main.append(card);
 
+    if (ready && me) {
+      main.append(streakHistory());
+      if (ui.scrollStreaks) { ui.scrollStreaks = false; setTimeout(() => { const el = document.getElementById("streaks"); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); }, 50); }
+    }
     const cc = h("div", { class: "card" }, h("h2", null, "Trend"),
       h("div", { class: "row" },
         h("div", { class: "seg", role: "group", "aria-label": "Group by" }, [["day", "Daily"], ["week", "Weekly"], ["month", "Monthly"]].map(([k, l]) => h("button", { type: "button", "aria-pressed": String(ui.chartMode === k), onclick: () => { ui.chartMode = k; render(); } }, l))),
@@ -2231,8 +2295,335 @@ a.btn { text-decoration: none; display: inline-block; }
     if (view === "crew") scheduleRender();
   }
 
+  // ---------- 7 Day Streak, excused days, skipped days ----------
+  const REASONS = [{ k: "sick", l: "Sick / injured" }, { k: "work", l: "Work" }, { k: "family", l: "Family" }, { k: "travel", l: "Travel" }, { k: "other", l: "Other" }];
+  const reasonLabel = (k) => (REASONS.find(r => r.k === k) || REASONS[REASONS.length - 1]).l;
+  const EX_LIMIT = 2;      // valid excused days allowed in any rolling 7 days
+  const EX_BACKFILL = 2;   // an excused day can be logged for today or up to 2 days back
+  const STREAK_GOAL = 7;
+  function cleanDay(d) {
+    d = d || {};
+    return { date: isYmd(d.date) ? d.date : null, reason: REASONS.some(r => r.k === d.reason) ? d.reason : "other",
+      note: typeof d.note === "string" ? d.note.slice(0, 300) : "", loggedAt: typeof d.loggedAt === "number" ? d.loggedAt : 0 };
+  }
+  const myDays = () => (me && members.get(me) && members.get(me).days) ? members.get(me).days : new Map();
+  /* Every day from the first entry to today, oldest first:
+     {date, status: exercised|excused|skipped|pending, over (excused past the limit → counts as skipped), reason, note, sessions} */
+  function dayLog(t) {
+    const list = [...mine().values()]; const ex = myDays();
+    const byDate = new Map(); for (const s of list) { if (!byDate.has(s.date)) byDate.set(s.date, []); byDate.get(s.date).push(s); }
+    const starts = [...byDate.keys(), ...[...ex.keys()].filter(d => d <= t)].sort();
+    const out = []; let count = 0, badges = 0;
+    if (!starts.length) return { days: out, count, badges, first: null };
+    const validEx = [];
+    for (let d = starts[0]; d <= t; d = addDays(d, 1)) {
+      if (weekStart(d) === d) count = 0; // the streak runs Mon–Sun and resets every Monday
+      const ss = byDate.get(d) || [];
+      const row = { date: d, sessions: ss, reason: null, note: "", over: false };
+      if (ss.length) { row.status = "exercised"; row.note = ss.map(s => s.notes).filter(Boolean).join(" · "); count++; }
+      else if (ex.has(d)) {
+        const e = ex.get(d); row.status = "excused"; row.reason = e.reason; row.note = e.note;
+        const from = addDays(d, -6);
+        if (validEx.filter(x => x >= from).length >= EX_LIMIT) { row.over = true; count = 0; } else { validEx.push(d); count++; }
+      }
+      else if (d === t) row.status = "pending";
+      else { row.status = "skipped"; count = 0; }
+      if (count === STREAK_GOAL && row.status !== "pending") badges++; // only possible on a Sunday
+      row.count = count;
+      out.push(row);
+    }
+    return { days: out, count, badges, first: starts[0] };
+  }
+  function exUsed(date, ignore) { // valid excused days in the 7 days ending on `date`, not counting `ignore`
+    const from = addDays(date, -6), to = addDays(date, 6);
+    const log = dayLog(today()).days.filter(r => r.status === "excused" && !r.over && r.date !== ignore);
+    // the window that matters is the busiest 7-day window that includes `date`
+    let worst = 0;
+    for (let s = from; s <= date; s = addDays(s, 1)) { const e = addDays(s, 6); worst = Math.max(worst, log.filter(r => r.date >= s && r.date <= e).length); }
+    return worst;
+  }
+  function streakMsg(info, t) {
+    const { count, days } = info;
+    const last = days.length ? days[days.length - 1] : null;
+    const todayDone = last && last.date === t && last.status !== "pending";
+    const loggedToday = last && last.date === t && last.status === "exercised";
+    const weekEnd = addDays(weekStart(t), 6);
+    const remaining = Math.round((parseYmd(weekEnd) - parseYmd(t)) / 864e5) + (todayDone ? 0 : 1);
+    if (count >= STREAK_GOAL) return { t: "🏆 7 Day Streak earned this week! A new one starts Monday." };
+    if (count + remaining < STREAK_GOAL) return { t: weekEnd === t && todayDone ? "Week done. A fresh streak starts Monday." : "A missed day put this week's badge out of reach. A fresh streak starts Monday." };
+    if (last && last.date === t && last.status === "excused" && !last.over) return { t: `Today's excused and counts. ${count} of 7 so far.`, paused: true };
+    const tail = loggedToday ? "" : " Log today to keep it going.";
+    if (count === 0) return { t: "Log a session today to start this week's streak." };
+    const left = STREAK_GOAL - count;
+    if (count === 6) return { t: `One more day! Don't break it now 🔥${loggedToday ? "" : " Log today to earn the badge."}` };
+    if (count === 5) return { t: `2 days from your 7 Day Streak badge.${tail}` };
+    if (count === 4) return { t: `Over halfway, 3 to go!${tail}` };
+    return { t: `${count} down, ${left} to go.${tail}` };
+  }
+  const STATUS_TXT = { exercised: "Exercised", excused: "Excused", skipped: "Skipped", pending: "Not yet", future: "Still to come", none: "Before you started" };
+  const STATUS_ICON = { exercised: "✓", excused: "⏸", skipped: "✕", pending: "·", future: "", none: "" };
+  function statusPill(r, iconOnly) {
+    const cls = r.over ? "st-over" : "st-" + r.status;
+    const txt = r.over ? "Excused, over limit" : STATUS_TXT[r.status];
+    return h("span", { class: "pill " + cls, title: txt, "aria-label": iconOnly ? txt : null }, iconOnly ? (r.over ? "!" : STATUS_ICON[r.status]) : `${r.over ? "!" : STATUS_ICON[r.status]} ${txt}`);
+  }
+  async function saveExcuse(date, reason, note) { await ensureMyDoc(); await db.doc(`sessions/${me}/days/${date}`).set({ date, status: "excused", reason, note: note.trim().slice(0, 300), loggedAt: Date.now() }); }
+  async function deleteExcuse(date) { await db.doc(`sessions/${me}/days/${date}`).delete(); }
+
+  function excuseForm(onDone) {
+    const t = today();
+    const f = ui.ex;
+    const existing = myDays().get(f.date);
+    const editing = !!(existing && f.editing);
+    const err = h("div", { class: "err" });
+    const wrap = h("div", { class: "exform" }, h("div", { class: "lbl" }, editing ? `Edit excused day: ${fmtDay(f.date)}` : "Log a day you couldn't exercise"));
+    if (!editing) {
+      const opts = []; for (let i = 0; i <= EX_BACKFILL; i++) opts.push(addDays(t, -i));
+      wrap.append(h("div", { class: "chips", role: "group", "aria-label": "Day" }, opts.map(d => h("button", { type: "button", class: "chip", "aria-pressed": String(f.date === d), onclick: () => { f.date = d; render(); } }, i18Day(d)))),
+        h("span", { class: "hint" }, `Excused days can be logged up to ${EX_BACKFILL} days back. After that a day with nothing logged stays skipped.`));
+    }
+    wrap.append(h("div", { class: "field" }, h("span", { class: "lbl" }, "Reason"),
+      h("div", { class: "chips", role: "group", "aria-label": "Reason" }, REASONS.map(r => h("button", { type: "button", class: "chip", "aria-pressed": String(f.reason === r.k), onclick: () => { f.reason = r.k; render(); } }, r.l)))));
+    wrap.append(h("div", { class: "field" }, h("label", { for: "ex-note" }, "Note (optional)"),
+      h("input", { id: "ex-note", type: "text", maxlength: "300", placeholder: "e.g. Late shift, kids' sport", value: f.note, oninput: (e) => { f.note = e.target.value; } })));
+    const used = exUsed(f.date, editing ? f.date : null);
+    const left = Math.max(0, EX_LIMIT - used);
+    wrap.append(h("span", { class: "hint" }, editing ? "Changing the reason or note doesn't affect your streak." : `${left} of ${EX_LIMIT} excused days left in this 7-day window. Excused days don't break your streak and count toward this week's 7.`));
+    const save = h("button", { class: "btn primary", type: "button" }, editing ? "Save changes" : "Save excused day");
+    save.addEventListener("click", async () => {
+      if (!f.reason) { err.textContent = "Pick a reason."; return; }
+      if (!editing) {
+        if (!(f.date >= addDays(t, -EX_BACKFILL) && f.date <= t)) { err.textContent = `Pick today or up to ${EX_BACKFILL} days back.`; return; }
+        if ([...mine().values()].some(s => s.date === f.date)) { err.textContent = `You already logged a session on ${fmtDay(f.date)}, so it counts as exercised.`; return; }
+        if (existing) { err.textContent = `${fmtDay(f.date)} is already excused (${reasonLabel(existing.reason)}). Edit it from the Days tab.`; return; }
+        if (left <= 0) { err.textContent = `You've used ${EX_LIMIT} excused days in this 7-day window, so this day would count as skipped.`; return; }
+      }
+      save.disabled = true;
+      try { await saveExcuse(f.date, f.reason, f.note || ""); ui.ex = null; ui.exSaved = editing ? null : f.date; if (onDone) onDone(); render(); }
+      catch (e) { save.disabled = false; err.textContent = "Couldn't save the excused day."; writeFailed(e); }
+    });
+    const btns = h("div", { class: "row" }, save, h("button", { class: "btn", type: "button", onclick: () => { ui.ex = null; render(); } }, "Cancel"));
+    if (editing) {
+      const del = h("button", { class: "btn danger", type: "button", style: "margin-left:auto" }, "Delete");
+      del.addEventListener("click", async () => {
+        if (!del.classList.contains("armed")) { del.classList.add("armed"); del.textContent = f.date < addDays(t, -EX_BACKFILL) ? "Delete? It becomes skipped" : "Confirm delete"; return; }
+        del.disabled = true;
+        try { await deleteExcuse(f.date); ui.ex = null; render(); } catch (e) { writeFailed(e); }
+      });
+      btns.append(del);
+    }
+    wrap.append(btns, err);
+    return wrap;
+  }
+  const i18Day = (d) => { const t = today(); return d === t ? "Today" : d === addDays(t, -1) ? "Yesterday" : parseYmd(d).toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short" }); };
+  function openExcuse(date, editing) {
+    const e = myDays().get(date);
+    ui.ex = { date, editing: !!editing, reason: e ? e.reason : null, note: e ? e.note : "" };
+  }
+
+  // One Mon–Sun week as 7 day rows; days before tracking started or still to come are blank.
+  function weekRows(ws, info, t) {
+    const byDate = new Map(info.days.map(r => [r.date, r]));
+    const out = [];
+    for (let i = 0; i < 7; i++) {
+      const d = addDays(ws, i);
+      out.push(byDate.get(d) || { date: d, status: d > t ? "future" : d === t ? "pending" : (!info.first || d < info.first) ? "none" : "skipped" });
+    }
+    return out;
+  }
+  function weekStrip(rows, label) {
+    return h("div", { class: "recent", role: "list", "aria-label": label }, rows.map(r =>
+      h("div", { class: "rday", role: "listitem" }, statusPill(r, true), parseYmd(r.date).toLocaleDateString("en-AU", { weekday: "short" }).slice(0, 3))));
+  }
+  function streakCard() {
+    const t = today(); const info = dayLog(t);
+    const p = Math.min(info.count, STREAK_GOAL);
+    const msg = streakMsg(info, t);
+    const card = h("div", { class: "card s7" }, h("h2", null, "7 Day Streak",
+      h("span", { class: "bdg" + (info.badges ? "" : " none"), title: "7 Day Streak badges earned" }, info.badges ? `🏆 Badge ×${info.badges}` : "No badge yet")));
+    const dots = h("div", { class: "s7dots", "aria-hidden": "true" });
+    for (let i = 1; i <= STREAK_GOAL; i++) dots.append(h("span", { class: i <= p ? "on" + (p === STREAK_GOAL ? " gold" : "") : i === p + 1 ? "next" : "" }, i <= p ? "✓" : String(i)));
+    card.append(h("div", { class: "s7head" }, h("span", { class: "s7num", "aria-label": `${p} of 7 days` }, p, h("small", null, "of 7 days")), dots),
+      h("p", { class: "s7msg" + (msg.paused ? " paused" : ""), role: "status" }, msg.t));
+    if (ui.exSaved) { card.append(h("div", { class: "notice" }, `${fmtDay(ui.exSaved)} saved as excused. Your streak keeps going.`)); ui.exSaved = null; }
+    card.append(weekStrip(weekRows(weekStart(t), info, t), "This week, Monday to Sunday"),
+      h("p", { class: "hint", style: "margin:0" }, "Streak runs Mon to Sun and resets every Monday."),
+      h("div", { class: "legend" }, h("span", null, "✓ Exercised"), h("span", null, "⏸ Excused (counts)"), h("span", null, "✕ Skipped (nothing logged)"), h("span", null, "· Today, not logged yet")));
+    if (canWrite && me) {
+      if (ui.ex && !ui.ex.editing) card.append(excuseForm());
+      else card.append(h("div", { class: "row" },
+        h("button", { class: "btn", type: "button", onclick: () => { openExcuse(t, false); render(); } }, "Couldn't exercise? Log an excused day"),
+        h("a", { href: "#stats", class: "small", onclick: () => { ui.scrollStreaks = true; } }, "See all streaks")));
+    }
+    return card;
+  }
+
+  // Stats: every Mon–Sun week, newest first
+  function streakHistory() {
+    const t = today(); const info = dayLog(t);
+    const card = h("div", { class: "card", id: "streaks" }, h("h2", null, "Streaks", h("span", { class: "right" }, "Mon to Sun")));
+    if (!info.first) { card.append(h("div", { class: "empty" }, "Your weeks show here once you log a session.")); return card; }
+    const thisWk = weekStart(t);
+    const weeks = [];
+    for (let ws = weekStart(info.first); ws <= thisWk; ws = addDays(ws, 7)) {
+      const rows = weekRows(ws, info, t);
+      const best = Math.max(0, ...rows.map(r => r.count || 0));
+      weeks.push({ ws, rows, best, earned: best >= STREAK_GOAL, current: ws === thisWk });
+    }
+    weeks.reverse();
+    // full weeks in a row that earned the badge (this week counts once it's earned)
+    let run = 0;
+    for (const w of weeks) { if (w.current && !w.earned) continue; if (!w.earned) break; run++; }
+    const bestWeek = Math.max(...weeks.map(w => w.best));
+    const tile = (k, v, s) => h("div", { class: "tile" }, h("span", { class: "k" }, k), h("span", { class: "v" }, v), h("span", { class: "s" }, s));
+    card.append(h("div", { class: "grid g3" },
+      tile("Badges", info.badges, info.badges === 1 ? "week with all 7 days" : "weeks with all 7 days"),
+      tile("Badge weeks in a row", run, run ? "Keep it going" : "Earn one by keeping Mon to Sun"),
+      tile("Best streak", h("span", null, bestWeek, h("small", null, " of 7")), "Most days kept in one week")));
+    const showAll = ui.allWeeks;
+    const shown = showAll ? weeks : weeks.slice(0, 8);
+    const fmtWk = (ws) => parseYmd(ws).toLocaleDateString("en-AU", { day: "numeric", month: "short" });
+    card.append(h("div", { class: "sklist" }, shown.map(w => h("div", { class: "skwk" + (w.current ? " cur" : "") },
+      h("div", { class: "skhead" }, h("b", null, w.current ? "This week" : `Week of ${fmtWk(w.ws)}`),
+        h("span", { class: "skres" + (w.earned ? " won" : "") }, w.earned ? "🏆 Badge" : `${w.best} of 7`)),
+      weekStrip(w.rows, `Week of ${fmtWk(w.ws)}`)))));
+    if (weeks.length > 8) card.append(h("button", { class: "btn", type: "button", onclick: () => { ui.allWeeks = !showAll; render(); } }, showAll ? "Show recent weeks" : `Show all ${weeks.length} weeks`));
+    card.append(h("p", { class: "hint", style: "margin:0" }, "Each week's number is the longest run of kept days (exercised or excused) that week. All 7 earns the badge."));
+    return card;
+  }
+
+  // ----- badge popup: shows once each time a new 7 Day Streak badge is earned -----
+  function maybeBadge() {
+    if (!ready || !me || !canWrite || document.querySelector(".celebrate")) return false;
+    const m = members.get(me); if (!m || !m.doc) return false;
+    const n = dayLog(today()).badges;
+    const seen = typeof m.doc.badge7Seen === "number" ? m.doc.badge7Seen : null;
+    if (seen === null || n < seen) { if (ui.badgeInit !== n) { ui.badgeInit = n; saveSettings({ badge7Seen: n }).catch(() => {}); } return false; }
+    if (n === seen || ui.badgeShown === n) return false;
+    ui.badgeShown = n;
+    showBadge(n);
+    saveSettings({ badge7Seen: n }).catch(() => {});
+    return true;
+  }
+  function showBadge(n) {
+    const prevFocus = document.activeElement;
+    const close = () => { ov.remove(); document.removeEventListener("keydown", onKey); if (prevFocus && prevFocus.focus) try { prevFocus.focus(); } catch {} scheduleRender(); };
+    const onKey = (e) => { if (e.key === "Escape") close(); };
+    const ok = h("button", { class: "btn primary big", type: "button", onclick: close }, "Let's go!");
+    const medal = medalSVG(cssVar("--a-run") || "#ea580c");
+    const box = h("div", { class: "cbox", role: "dialog", "aria-modal": "true", "aria-labelledby": "b7-title", onclick: (e) => e.stopPropagation() },
+      medal,
+      h("h2", { id: "b7-title", class: "ctitle", style: "color:var(--a-run)" }, "7 Day Streak!"),
+      h("p", { class: "cline" }, ["Seven days straight. That's a habit now.", "A full week without missing. Legend.", "7 for 7. The streak is real."][n % 3]),
+      h("div", { class: "streakb gold" }, n === 1 ? "🏆 First 7 Day Streak badge" : `🏆 Badge ×${n}`),
+      h("p", { class: "small muted", style: "margin:0" }, "Keep going: the next badge comes at 7 more days."),
+      ok);
+    const ov = h("div", { class: "celebrate", onclick: close }, box);
+    document.body.append(ov);
+    document.addEventListener("keydown", onKey);
+    setTimeout(() => { try { ok.focus(); } catch {} }, 50);
+    confetti(["#f5c542", "#fff3b0", cssVar("--a-run"), cssVar("--good"), cssVar("--accent")].filter(Boolean));
+    playCheer();
+  }
+
+  // ----- Days tab: filters over exercised / excused / skipped days -----
+  const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+  function dayRange(F, t, first) {
+    let from, to = t;
+    if (F.range === "week") from = weekStart(t);
+    else if (F.range === "month") from = t.slice(0, 8) + "01";
+    else if (F.range === "3m") { const d = parseYmd(t); d.setMonth(d.getMonth() - 3); d.setDate(d.getDate() + 1); from = ymd(d); }
+    else if (F.range === "all") from = first || t;
+    else { from = F.from <= F.to ? F.from : F.to; to = F.from <= F.to ? F.to : F.from; }
+    return [from, to > t ? t : to];
+  }
+  function viewDays(main) {
+    const t = today(); const info = dayLog(t);
+    const F = ui.df || (ui.df = { st: ["excused"], rs: [], range: "month", from: addDays(t, -29), to: t });
+    const [from, to] = dayRange(F, t, info.first);
+    const preset = (o) => () => { Object.assign(F, { st: ["excused"], rs: [], range: "month" }, o); render(); };
+    const toggle = (arr, k) => (arr.includes(k) ? arr.filter(x => x !== k) : [...arr, k]);
+
+    if (ui.ex && ui.ex.editing && canWrite) main.append(h("div", { class: "card" }, excuseForm()));
+
+    const fc = h("div", { class: "card" }, h("h2", null, "Days", h("span", { class: "right" }, info.first ? `Since ${fmtDay(info.first)}` : "")),
+      h("div", { class: "field" }, h("span", { class: "lbl" }, "Quick filters"), h("div", { class: "chips" },
+        h("button", { type: "button", class: "chip", onclick: preset({}) }, "All excused this month"),
+        h("button", { type: "button", class: "chip", onclick: preset({ rs: ["work"] }) }, "Work-related excuses"),
+        h("button", { type: "button", class: "chip", onclick: preset({ st: ["skipped"] }) }, "Skipped days"),
+        h("button", { type: "button", class: "chip", onclick: preset({ st: ["exercised", "excused", "skipped"], range: "week" }) }, "This week, everything"))),
+      h("div", { class: "field" }, h("span", { class: "lbl" }, "Status"), h("div", { class: "chips", role: "group", "aria-label": "Status" },
+        ["exercised", "excused", "skipped"].map(k => h("button", { type: "button", class: "chip", "aria-pressed": String(F.st.includes(k)), onclick: () => { F.st = toggle(F.st, k); render(); } }, STATUS_TXT[k])))),
+      h("div", { class: "field" }, h("span", { class: "lbl" }, "Reason (excused days)"), h("div", { class: "chips", role: "group", "aria-label": "Reason" },
+        REASONS.map(r => h("button", { type: "button", class: "chip", disabled: !F.st.includes("excused"), "aria-pressed": String(F.rs.includes(r.k)), onclick: () => { F.rs = toggle(F.rs, r.k); render(); } }, r.l))),
+        h("span", { class: "hint" }, F.st.includes("excused") ? (F.rs.length ? "Showing only the reasons picked." : "No reason picked: all reasons show.") : "Turn on Excused to filter by reason.")),
+      h("div", { class: "field" }, h("span", { class: "lbl" }, "Dates"), h("div", { class: "seg wrap", role: "group", "aria-label": "Dates" },
+        [["week", "This week"], ["month", "This month"], ["3m", "Last 3 months"], ["all", "All"], ["custom", "Custom"]].map(([k, l]) => h("button", { type: "button", "aria-pressed": String(F.range === k), onclick: () => { F.range = k; render(); } }, l)))),
+      F.range === "custom" ? h("div", { class: "pnav" },
+        h("label", { class: "pjump" }, h("span", { class: "hint" }, "From"), h("input", { type: "date", value: F.from, max: t, onchange: (e) => { if (isYmd(e.target.value)) { F.from = e.target.value; render(); } } })),
+        h("label", { class: "pjump" }, h("span", { class: "hint" }, "To"), h("input", { type: "date", value: F.to, max: t, onchange: (e) => { if (isYmd(e.target.value)) { F.to = e.target.value; render(); } } }))) : null);
+    main.append(fc);
+
+    if (!ready) { main.append(h("div", { class: "card" }, h("div", { class: "empty" }, "Loading your days…"))); return; }
+    if (!info.first) { main.append(h("div", { class: "card" }, h("div", { class: "empty" }, "Nothing logged yet. Days show here once you log a session or an excused day."))); return; }
+
+    const inRange = info.days.filter(r => r.date >= from && r.date <= to && r.status !== "pending");
+    const rows = inRange.filter(r => F.st.includes(r.status)
+      && (r.status !== "excused" || !F.rs.length || F.rs.includes(r.reason)));
+
+    // summary: each status counted on its own
+    const sc = h("div", { class: "card" }, h("h2", null, "Summary", h("span", { class: "right" }, `${fmtDay(from)} – ${fmtDay(to)}`)));
+    if (!F.st.length) sc.append(h("div", { class: "empty" }, "Pick at least one status above."));
+    if (F.st.includes("exercised")) { const n = rows.filter(r => r.status === "exercised").length; sc.append(h("div", { class: "sumrow" }, h("span", { class: "n" }, n), h("span", null, `exercised day${n === 1 ? "" : "s"}`))); }
+    if (F.st.includes("excused")) {
+      const ex = rows.filter(r => r.status === "excused");
+      const counts = REASONS.map(r => [r, ex.filter(x => x.reason === r.k).length]).filter(([, n]) => n);
+      const over = ex.filter(r => r.over).length;
+      sc.append(h("div", { class: "sumrow" }, h("span", { class: "n" }, ex.length), h("span", null, `excused day${ex.length === 1 ? "" : "s"}`),
+        h("span", { class: "small muted" }, counts.map(([r, n]) => `${r.l} ${n}`).join(" · "))));
+      if (counts.length) {
+        const max = Math.max(...counts.map(([, n]) => n));
+        sc.append(h("div", { class: "hrows", "aria-label": "Excused days by reason" }, counts.sort((a, b) => b[1] - a[1]).map(([r, n]) => h("div", { class: "hrow" }, h("span", null, r.l),
+          h("div", { class: "bar" }, h("span", { style: `width:${100 * n / max}%;background:var(--accent)` })), h("b", null, n)))));
+        const top = counts[0]; if (ex.length >= 3) sc.append(h("div", { class: "insight" }, `${top[0].l} caused ${Math.round(100 * top[1] / ex.length)}% of your excused days in this period.`));
+      }
+      if (over) sc.append(h("p", { class: "hint", style: "margin:0" }, `${over} excused day${over === 1 ? " was" : "s were"} over the limit of ${EX_LIMIT} in 7 days, so ${over === 1 ? "it" : "they"} counted as skipped for the streak.`));
+    }
+    if (F.st.includes("skipped")) {
+      const sk = rows.filter(r => r.status === "skipped");
+      sc.append(h("div", { class: "sumrow" }, h("span", { class: "n" }, sk.length), h("span", null, `skipped day${sk.length === 1 ? "" : "s"}`), h("span", { class: "small muted" }, "nothing logged")));
+      if (sk.length) {
+        const wd = WEEKDAYS.map((w, i) => [w, sk.filter(r => (parseYmd(r.date).getDay() + 6) % 7 === i).length]);
+        const max = Math.max(...wd.map(([, n]) => n));
+        sc.append(h("div", { class: "hrows", "aria-label": "Skipped days by weekday" }, wd.map(([w, n]) => h("div", { class: "hrow" }, h("span", null, w),
+          h("div", { class: "bar" }, h("span", { style: `width:${max ? 100 * n / max : 0}%;background:var(--bad)` })), h("b", null, n)))));
+        const worst = wd.filter(([, n]) => n === max);
+        if (max >= 2 && worst.length <= 2) sc.append(h("div", { class: "insight" }, `${worst.map(([w]) => w + "s").join(" and ")} get skipped most (${max} time${max === 1 ? "" : "s"}). A reminder or a short session on ${worst.length === 1 ? "that day" : "those days"} could protect your streak.`));
+      }
+    }
+    main.append(sc);
+
+    const lc = h("div", { class: "card" }, h("h2", null, "Matching days", h("span", { class: "right" }, `${rows.length}`)));
+    if (!rows.length) lc.append(h("div", { class: "empty" }, "No days match these filters."));
+    else {
+      const lim = ui.dShow || 60;
+      const listEl = h("div", { class: "dlist" });
+      for (const r of [...rows].reverse().slice(0, lim)) {
+        let detail = "", act = null;
+        if (r.status === "exercised") { const tot = totals(r.sessions, r.date, r.date); detail = `${r.sessions.map(s => s.activity).join(", ")} · ${fmtKm(tot.km)} km · ${fmtDuration(tot.min)}`; }
+        else if (r.status === "excused") { detail = reasonLabel(r.reason); if (canWrite) act = h("button", { class: "btn sm", type: "button", onclick: () => { openExcuse(r.date, true); render(); window.scrollTo({ top: 0, behavior: "smooth" }); } }, "Edit"); }
+        else { detail = "Nothing logged"; if (canWrite && r.date >= addDays(t, -EX_BACKFILL)) act = h("button", { class: "btn sm", type: "button", onclick: () => { openExcuse(r.date, false); location.hash = "#log"; } }, "Excuse this day"); }
+        listEl.append(h("div", { class: "drow" }, h("b", null, fmtDay(r.date)), statusPill(r),
+          h("span", null, detail, r.note ? h("div", { class: "note" }, r.note) : null), act || h("span")));
+      }
+      lc.append(listEl);
+      if (rows.length > lim) lc.append(h("button", { class: "btn", type: "button", onclick: () => { ui.dShow = lim + 60; render(); } }, `Show more (${rows.length - lim})`));
+    }
+    main.append(lc);
+  }
+
   // ---------- routing & start ----------
-  const VIEWS = window.STANDALONE ? ["log", "stats", "goals", "import", "settings"] : ["log", "stats", "goals", "crew", "import", "settings"];
+  const VIEWS = window.STANDALONE ? ["log", "stats", "days", "goals", "import", "settings"] : ["log", "stats", "days", "goals", "crew", "import", "settings"];
   function fromHash() { const v = location.hash.replace("#", ""); return VIEWS.includes(v) ? v : "log"; }
   window.addEventListener("hashchange", () => { const v = fromHash(); if (v !== view) { view = v; render(); window.scrollTo(0, 0); } });
   view = fromHash();
