@@ -407,7 +407,7 @@ a.btn { text-decoration: none; display: inline-block; }
     <div>
       <h1>Exercise Tracker</h1>
       <div class="status" id="status">Connecting…</div>
-      <div class="status build" id="build">Build 12 · 27 Nov 2026 · © 2026 Nena. All rights reserved.</div>
+      <div class="status build" id="build">Build 13 · 27 Nov 2026 · © 2026 Nena. All rights reserved.</div>
     </div>
     <nav class="tabs" aria-label="Sections">
       <a href="#log" data-view="log">Log</a>
@@ -800,6 +800,7 @@ a.btn { text-decoration: none; display: inline-block; }
       period: g.period === "month" ? "month" : g.period === "day" ? "day" : "week",
       target: typeof g.target === "number" && g.target > 0 && g.target < 100000 ? g.target : 1 };
   }
+  const goalName = (g) => (g.activity === "All" ? "All activities" : g.activity);
   const mine = () => (me && members.get(me)) ? members.get(me).sessions : new Map();
   const myGoals = () => { const m = me && members.get(me); return m && m.doc && Array.isArray(m.doc.goals) ? m.doc.goals.slice(0, 30).map(cleanGoal) : []; };
 
@@ -1896,6 +1897,7 @@ a.btn { text-decoration: none; display: inline-block; }
       h("div", { class: "tile" }, h("span", { class: "k" }, "Best streak"), h("span", { class: "v" }, st.best, h("small", null, st.best === 1 ? "day" : "days")), h("span", { class: "s" }, "Days in a row with any activity"))));
 
     const card = h("div", { class: "card" }, h("h2", null, "Your goals"));
+    if (ui.goalMsg && Date.now() - ui.goalMsg.at < 8000) card.append(h("div", { class: "notice ok", role: "status" }, ui.goalMsg.text));
     if (!goals.length) card.append(h("div", { class: "empty" }, "No goals yet. Set one below, like 100 km of riding a week."));
     for (const g of goals) {
       const [from, to] = periodRange(g.period, t);
@@ -1910,30 +1912,62 @@ a.btn { text-decoration: none; display: inline-block; }
         g.metric === "wkm" ? weightedBar(list, from, to, g, pct) : h("div", { class: "bar", role: "progressbar", "aria-valuenow": String(pct), "aria-valuemin": "0", "aria-valuemax": "100" }, h("span", { style: `width:${pct}%` })),
         g.metric === "wkm" ? weightedBreakdown(list, from, to, g) : null,
         h("div", { class: "row small muted" }, done ? `${pct}% · ahead by ${metricFmt(v - g.target, g.metric)}` : `${metricFmt(left, g.metric)} to go · ${g.period === "day" ? "today" : daysLeft === 0 ? "last day" : daysLeft + " day" + (daysLeft === 1 ? "" : "s") + " left"}`,
-          canWrite ? h("button", { class: "btn ghost sm", type: "button", style: "margin-left:auto", onclick: async (e) => { e.target.disabled = true; try { await saveGoals(goals.filter(x => x.id !== g.id)); } catch (er) { writeFailed(er); } } }, "Remove") : null));
+          canWrite ? h("button", { class: "btn ghost sm", type: "button", style: "margin-left:auto", onclick: () => { ui.goalEdit = { id: g.id, target: String(g.target) }; render(); } }, "Edit") : null,
+          canWrite ? h("button", { class: "btn ghost sm", type: "button", onclick: async (e) => { e.target.disabled = true; try { await saveGoals(goals.filter(x => x.id !== g.id)); } catch (er) { writeFailed(er); } } }, "Remove") : null));
       card.append(gEl);
+      if (canWrite && ui.goalEdit && ui.goalEdit.id === g.id) {
+        const ge = ui.goalEdit; const eErr = h("div", { class: "err" });
+        const saveT = h("button", { class: "btn primary sm", type: "button" }, "Save");
+        saveT.addEventListener("click", async () => {
+          let nt = parseFloat(ge.target);
+          if (!isFinite(nt) || nt <= 0) { eErr.textContent = "Enter a target above zero."; return; }
+          if (g.metric === "sessions") nt = Math.max(1, Math.round(nt));
+          saveT.disabled = true;
+          try {
+            await saveGoals(goals.map(x => x.id === g.id ? { ...x, target: nt } : x));
+            ui.goalMsg = { at: Date.now(), text: `Updated: ${goalName(g)} ${metricFmt(g.target, g.metric)} → ${metricFmt(nt, g.metric)} a ${g.period}.` };
+            ui.goalEdit = null; render();
+          } catch (er) { saveT.disabled = false; eErr.textContent = "Couldn't save the goal."; writeFailed(er); }
+        });
+        card.append(h("div", { class: "exform" },
+          h("div", { class: "field" }, h("label", { for: "ge-tgt" }, `New target (${g.metric === "wkm" ? "goal km" : g.metric === "km" ? "km" : g.metric === "hours" ? "hours" : "sessions"} a ${g.period})`),
+            h("input", { id: "ge-tgt", type: "number", inputmode: "decimal", min: "0", step: g.metric === "sessions" ? "1" : "0.5", value: ge.target, oninput: (e) => { ge.target = e.target.value; } })),
+          h("div", { class: "row" }, saveT, h("button", { class: "btn sm", type: "button", onclick: () => { ui.goalEdit = null; render(); } }, "Cancel")), eErr));
+      }
     }
     main.append(card);
 
     if (canWrite && me) {
       const f = ui.goalForm || (ui.goalForm = { activity: "All", metric: "wkm", period: "week", target: "" });
       const err = h("div", { class: "err" });
-      const add = h("button", { class: "btn primary", type: "button" }, "Add goal");
+      const sameKind = (x) => x.activity === f.activity && x.metric === f.metric && x.period === f.period;
+      const same = goals.find(sameKind);
+      const add = h("button", { class: "btn primary", type: "button" }, same ? "Update goal" : "Add goal");
       add.addEventListener("click", async () => {
-        const target = parseFloat(f.target);
+        let target = parseFloat(f.target);
         if (!isFinite(target) || target <= 0) { err.textContent = "Enter a target above zero."; return; }
-        if (goals.length >= 30) { err.textContent = "That's the most goals you can have. Remove one first."; return; }
+        if (f.metric === "sessions") target = Math.max(1, Math.round(target));
+        const old = goals.find(sameKind);
+        if (!old && goals.length >= 30) { err.textContent = "That's the most goals you can have. Remove one first."; return; }
         add.disabled = true;
-        try { await saveGoals([...goals, cleanGoal({ id: String(Date.now()), activity: f.activity, metric: f.metric, period: f.period, target: f.metric === "sessions" ? Math.round(target) : target })]); ui.goalForm = null; render(); }
+        // Same activity + period + measure replaces the old goal (and any older duplicates), so there's only ever one.
+        const next = old ? goals.filter(x => !sameKind(x) || x.id === old.id).map(x => x.id === old.id ? { ...x, target } : x)
+          : [...goals, cleanGoal({ id: String(Date.now()), activity: f.activity, metric: f.metric, period: f.period, target })];
+        try {
+          await saveGoals(next);
+          ui.goalMsg = { at: Date.now(), text: old ? `Updated: ${goalName(old)} ${metricFmt(old.target, old.metric)} → ${metricFmt(target, old.metric)} a ${old.period}.` : `Added: ${goalName(f)} ${metricFmt(target, f.metric)} a ${f.period}.` };
+          ui.goalForm = null; ui.goalEdit = null; render();
+        }
         catch (e) { add.disabled = false; err.textContent = "Couldn't save the goal."; writeFailed(e); }
       });
       main.append(h("div", { class: "card" }, h("h2", null, "Set a goal"),
         h("div", { class: "grid g2" },
-          h("div", { class: "field" }, h("label", { for: "g-act" }, "Activity"), h("select", { id: "g-act", onchange: (e) => { f.activity = e.target.value; } }, ["All", ...ACTIVITIES].map(a => h("option", { value: a, selected: a === f.activity }, a === "All" ? "All activities" : a)))),
-          h("div", { class: "field" }, h("label", { for: "g-per" }, "Every"), h("select", { id: "g-per", onchange: (e) => { f.period = e.target.value; } }, [["day", "Day"], ["week", "Week (Mon–Sun)"], ["month", "Month"]].map(([k, l]) => h("option", { value: k, selected: k === f.period }, l)))),
+          h("div", { class: "field" }, h("label", { for: "g-act" }, "Activity"), h("select", { id: "g-act", onchange: (e) => { f.activity = e.target.value; render(); } }, ["All", ...ACTIVITIES].map(a => h("option", { value: a, selected: a === f.activity }, a === "All" ? "All activities" : a)))),
+          h("div", { class: "field" }, h("label", { for: "g-per" }, "Every"), h("select", { id: "g-per", onchange: (e) => { f.period = e.target.value; render(); } }, [["day", "Day"], ["week", "Week (Mon–Sun)"], ["month", "Month"]].map(([k, l]) => h("option", { value: k, selected: k === f.period }, l)))),
           h("div", { class: "field" }, h("label", { for: "g-met" }, "Measure"), h("select", { id: "g-met", onchange: (e) => { f.metric = e.target.value; render(); } }, [["wkm", "Goal km (weighted)"], ["km", "Distance (km)"], ["hours", "Time (hours)"], ["sessions", "Sessions"]].map(([k, l]) => h("option", { value: k, selected: k === f.metric }, l)))),
           h("div", { class: "field" }, h("label", { for: "g-tgt" }, "Target"), h("input", { id: "g-tgt", type: "number", inputmode: "decimal", min: "0", step: f.metric === "sessions" ? "1" : "0.5", placeholder: f.metric === "wkm" ? "e.g. 15" : f.metric === "km" ? "e.g. 100" : f.metric === "hours" ? "e.g. 5" : "e.g. 4", value: f.target, oninput: (e) => { f.target = e.target.value; } }))),
         f.metric === "wkm" ? h("p", { class: "hint", style: "margin:0" }, "Goal km are weighted: actual km × activity weight × conditions. Set the weights on the Settings tab.") : null,
+        same ? h("div", { class: "notice" }, `You already have ${goalName(same)}: ${metricFmt(same.target, same.metric)} a ${same.period}. Saving will update it to the new target, not add a second goal.`) : null,
         h("div", { class: "row" }, add), err));
 
     }
