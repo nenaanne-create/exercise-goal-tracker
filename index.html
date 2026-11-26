@@ -1715,7 +1715,9 @@ a.btn { text-decoration: none; display: inline-block; }
         btns.append(del);
       }
       card.append(warn, btns, err);
-      main.append(card);
+      // second card on the Log tab, right after the first card
+      const firstCard = main.querySelector(".card");
+      if (firstCard) firstCard.after(card); else main.prepend(card);
     }
 
     const card = h("div", { class: "card" }, h("h2", null, "Your sessions", h("span", { class: "right" }, `${list.length} logged`)));
