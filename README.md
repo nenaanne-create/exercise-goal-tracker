@@ -5,4 +5,4 @@ Data is saved in each person's own browser on their device.
 
 Live app: https://nenaanne-create.github.io/exercise-goal-tracker/
 
-© 2026 Nena. All rights reserved.
+Copyright © 2026 Nena Sorensen & Andrew Sorensen
