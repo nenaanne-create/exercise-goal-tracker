@@ -407,7 +407,7 @@ a.btn { text-decoration: none; display: inline-block; }
     <div>
       <h1>Exercise Tracker</h1>
       <div class="status" id="status">Connecting…</div>
-      <div class="status build" id="build">Build 11 · 26 Nov 2026 · © 2026 Nena. All rights reserved.</div>
+      <div class="status build" id="build">Build 12 · 27 Nov 2026 · © 2026 Nena. All rights reserved.</div>
     </div>
     <nav class="tabs" aria-label="Sections">
       <a href="#log" data-view="log">Log</a>
@@ -879,7 +879,7 @@ a.btn { text-decoration: none; display: inline-block; }
     if (!db) { main.append(h("div", { class: "card" }, h("div", { class: "empty" }, $("status").textContent))); return; }
     ({ log: viewLog, stats: viewStats, days: viewDays, goals: viewGoals, crew: viewCrew, import: viewImport, settings: viewSettings })[view](main);
     resolveNames();
-    if (!maybeBadge()) maybeCelebrate();
+    if (!maybeBadge() && !maybeDistBadge()) maybeCelebrate();
     maybeNudge();
   }
 
@@ -1260,7 +1260,7 @@ a.btn { text-decoration: none; display: inline-block; }
   }
   // ---------- backup & restore (JSON) ----------
   const BACKUP_APP = "exercise-tracker-backup", BACKUP_VER = 1;
-  const SETTING_KEYS = ["goals", "types", "weights", "cond", "timeKm", "badge7Seen", "celebrated", "ranks", "dailyDefaulted", "weeklyDefaulted"];
+  const SETTING_KEYS = ["goals", "types", "weights", "cond", "timeKm", "badge7Seen", "distBadges", "celebrated", "ranks", "dailyDefaulted", "weeklyDefaulted"];
   // Older GitHub backups were a copy of the whole on-device store; turn one into the shared backup shape.
   function fromStoreDump(o) {
     const st = o.data, sessions = [], days = []; let settings = {};
@@ -1644,7 +1644,7 @@ a.btn { text-decoration: none; display: inline-block; }
     const tile = (k, tot, extra) => h("div", { class: "tile" }, h("span", { class: "k" }, k), h("span", { class: "v" }, fmtKm(tot.km), h("small", null, "km")), h("span", { class: "s" }, `${fmtDuration(tot.min)} · ${tot.sessions} session${tot.sessions === 1 ? "" : "s"}`), extra);
     const dg = dailyGoal();
     if (ready) main.append(dailySummary(list, dg, t));
-    if (ready && me) main.append(streakCard());
+    if (ready && me) main.append(streakCard(), distBadgeCard());
     const ts = dg ? goalStreaks(list, dg, t) : null;
     const unitW = isWeek(dg) ? "week" : "day";
     main.append(h("div", { class: "grid g4" }, tile("Today", tt), tile("This week", tw), tile("This month", tm),
@@ -1854,7 +1854,7 @@ a.btn { text-decoration: none; display: inline-block; }
     main.append(card);
 
     if (ready && me) {
-      main.append(streakHistory());
+      main.append(streakHistory(), distBadgeCard());
       if (ui.scrollStreaks) { ui.scrollStreaks = false; setTimeout(() => { const el = document.getElementById("streaks"); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); }, 50); }
     }
     const cc = h("div", { class: "card" }, h("h2", null, "Trend"),
@@ -2748,6 +2748,101 @@ a.btn { text-decoration: none; display: inline-block; }
     document.addEventListener("keydown", onKey);
     setTimeout(() => { try { ok.focus(); } catch {} }, 50);
     confetti(["#f5c542", "#fff3b0", cssVar("--a-run"), cssVar("--good"), cssVar("--accent")].filter(Boolean));
+    playCheer();
+  }
+
+  // ----- weekly & monthly distance badges -----
+  // Earned when a week (Mon–Sun) or calendar month reaches your weekly / monthly distance goal (km or goal km).
+  // Distance adds up across the period, so a missed day can be made up. Earned badges are kept in distBadges.
+  const DIST_KINDS = [["week", "Weekly"], ["month", "Monthly"]];
+  function distGoal(kind) {
+    const gs = myGoals().filter(g => g.period === kind && (g.metric === "km" || g.metric === "wkm"));
+    return gs.find(g => g.activity === "All" && g.metric === "wkm") || gs.find(g => g.activity === "All") || gs[0] || null;
+  }
+  function storedDist(kind) {
+    const m = me && members.get(me); const b = m && m.doc && m.doc.distBadges;
+    return b && Array.isArray(b[kind]) ? b[kind].filter(isYmd).slice(0, 3000) : [];
+  }
+  function distEarned(kind) { // start dates of every week / month earned, oldest first
+    const out = new Set(storedDist(kind));
+    const g = distGoal(kind); const list = [...mine().values()]; const t = today();
+    if (g && list.length) {
+      const first = list.map(s => s.date).sort()[0];
+      let p = kind === "week" ? weekStart(first) : first.slice(0, 8) + "01";
+      while (p <= t) {
+        const [a, b] = periodRange(kind, p);
+        if (metricVal(totals(list, a, b, g.activity), g.metric) >= g.target - 1e-9) out.add(a);
+        p = addDays(b, 1);
+      }
+    }
+    return [...out].sort();
+  }
+  const distLabel = (kind, start) => kind === "week"
+    ? `Week of ${parseYmd(start).toLocaleDateString("en-AU", { day: "numeric", month: "short" })}`
+    : parseYmd(start).toLocaleDateString("en-AU", { month: "long", year: "numeric" });
+  function distBadgeCard() {
+    const t = today(); const list = [...mine().values()];
+    const card = h("div", { class: "card s7", style: "border-top-color:var(--a-ride)" }, h("h2", null, "Distance badges"));
+    for (const [kind, name] of DIST_KINDS) {
+      const g = distGoal(kind); const earned = distEarned(kind); const n = earned.length;
+      const row = h("div", { class: "goal" }, h("div", { class: "top" }, h("b", null, `${name} distance`),
+        h("span", { class: "bdg" + (n ? "" : " none"), title: `${name} distance badges earned` }, n ? `🏅 Badge ×${n}` : "No badge yet")));
+      if (!g) row.append(h("p", { class: "small muted", style: "margin:0" }, `Set a ${name.toLowerCase()} goal measured in distance or goal km to earn this badge. `, h("a", { href: "#goals" }, "Set goals")));
+      else {
+        const [a, b] = periodRange(kind, t);
+        const v = metricVal(totals(list, a, b, g.activity), g.metric);
+        const pct = Math.min(100, Math.round(100 * v / g.target));
+        const done = v >= g.target - 1e-9;
+        const daysLeft = Math.round((parseYmd(b) - parseYmd(t)) / 864e5);
+        const what = g.activity === "All" ? "" : ` of ${g.activity}`;
+        row.append(h("div", { class: "bar", role: "progressbar", "aria-valuenow": String(pct), "aria-valuemin": "0", "aria-valuemax": "100", "aria-label": `${name} distance badge progress`, style: `--ac:${done ? "var(--good)" : "var(--a-ride)"}` }, h("span", { style: `width:${pct}%` })),
+          h("div", { class: "small muted" }, done
+            ? `🏅 Earned this ${kind}: ${metricFmt(v, g.metric)}${what} of ${metricFmt(g.target, g.metric)}`
+            : `${metricFmt(v, g.metric)}${what} of ${metricFmt(g.target, g.metric)} · ${metricFmt(g.target - v, g.metric)} to go · ${daysLeft === 0 ? "last day" : daysLeft + " day" + (daysLeft === 1 ? "" : "s") + " left"}`));
+        if (n && earned[n - 1] !== a) row.append(h("div", { class: "small muted" }, `Last earned: ${distLabel(kind, earned[n - 1])}`));
+      }
+      card.append(row);
+    }
+    card.append(h("p", { class: "hint", style: "margin:0" }, "Distance adds up across the whole week (Mon to Sun) or month, so a missed day can be made up later. Badges you've earned are kept, even if you change the goal."));
+    return card;
+  }
+  function maybeDistBadge() {
+    if (!ready || !me || !canWrite || document.querySelector(".celebrate")) return false;
+    const m = members.get(me); if (!m || !m.doc) return false;
+    const now = { week: distEarned("week"), month: distEarned("month") };
+    const key = JSON.stringify(now);
+    const had = m.doc.distBadges && typeof m.doc.distBadges === "object";
+    if (!had) { if (ui.distInit !== key) { ui.distInit = key; saveSettings({ distBadges: now }).catch(() => {}); } return false; } // first run: past badges count, no popup
+    const newW = now.week.filter(x => !storedDist("week").includes(x)), newM = now.month.filter(x => !storedDist("month").includes(x));
+    if (!newW.length && !newM.length) return false;
+    if (ui.distShown === key) return false;
+    ui.distShown = key;
+    saveSettings({ distBadges: now }).catch(() => {});
+    const kind = newM.length ? "month" : "week";
+    const start = kind === "month" ? newM[newM.length - 1] : newW[newW.length - 1];
+    showDistBadge(kind, start, now[kind].length);
+    return true;
+  }
+  function showDistBadge(kind, start, n) {
+    const g = distGoal(kind); const name = kind === "week" ? "Weekly" : "Monthly";
+    const col = kind === "week" ? "--a-ride" : "--a-swim";
+    const prevFocus = document.activeElement;
+    const close = () => { ov.remove(); document.removeEventListener("keydown", onKey); if (prevFocus && prevFocus.focus) try { prevFocus.focus(); } catch {} scheduleRender(); };
+    const onKey = (e) => { if (e.key === "Escape") close(); };
+    const ok = h("button", { class: "btn primary big", type: "button", onclick: close }, "Let's go!");
+    const lines = kind === "week" ? ["The kilometres added up. Big week!", "Weekly distance: smashed.", "That's a week worth bragging about."] : ["A whole month of distance in the bank!", "Monthly target conquered. Legend.", "The month is yours."];
+    const box = h("div", { class: "cbox", role: "dialog", "aria-modal": "true", "aria-labelledby": "bd-title", onclick: (e) => e.stopPropagation() },
+      medalSVG(cssVar(col) || "#2563eb"),
+      h("h2", { id: "bd-title", class: "ctitle", style: `color:var(${col})` }, `${name} distance!`),
+      h("p", { class: "cline" }, lines[n % 3]),
+      h("p", { class: "small", style: "margin:0" }, `${distLabel(kind, start)}${g ? ": " + metricFmt(g.target, g.metric) + " reached" : ""}`),
+      h("div", { class: "streakb gold" }, n === 1 ? `🏅 First ${name.toLowerCase()} distance badge` : `🏅 ${name} distance ×${n}`),
+      ok);
+    const ov = h("div", { class: "celebrate", onclick: close }, box);
+    document.body.append(ov);
+    document.addEventListener("keydown", onKey);
+    setTimeout(() => { try { ok.focus(); } catch {} }, 50);
+    confetti(["#f5c542", "#fff3b0", cssVar(col), cssVar("--good"), cssVar("--accent")].filter(Boolean));
     playCheer();
   }
 
