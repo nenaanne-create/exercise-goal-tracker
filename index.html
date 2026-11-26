@@ -407,7 +407,7 @@ a.btn { text-decoration: none; display: inline-block; }
     <div>
       <h1>Exercise Tracker</h1>
       <div class="status" id="status">Connecting…</div>
-      <div class="status build" id="build">Build 10 · 26 Nov 2026 · © 2026 Nena. All rights reserved.</div>
+      <div class="status build" id="build">Build 11 · 26 Nov 2026 · © 2026 Nena. All rights reserved.</div>
     </div>
     <nav class="tabs" aria-label="Sections">
       <a href="#log" data-view="log">Log</a>
@@ -424,7 +424,7 @@ a.btn { text-decoration: none; display: inline-block; }
 <script id="lib">
 /* Pure helpers: dates, durations, parsing. No DOM, no storage. */
 (function (root) {
-  const ACTIVITIES = ["Ride", "Paddle", "Run", "Walk", "Swim", "Gym", "Other"];
+  const ACTIVITIES = ["Ride", "Paddle", "Run", "Walk", "Swim", "Gym"];
   const pad = (n) => String(n).padStart(2, "0");
   const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   const parseYmd = (s) => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
@@ -680,18 +680,16 @@ a.btn { text-decoration: none; display: inline-block; }
   // Main exercises first: ocean paddling and riding
   const DEFAULT_TYPES = [
     { name: "Paddle ocean", color: "paddle" }, { name: "Ride", color: "ride" }, { name: "Paddle river", color: "indigo" },
-    { name: "Walk", color: "run" }, { name: "Run", color: "red" }, { name: "Swim", color: "swim" }, { name: "Gym", color: "gym" }, { name: "Other", color: "other" }];
+    { name: "Walk", color: "run" }, { name: "Run", color: "red" }, { name: "Swim", color: "swim" }, { name: "Gym", color: "gym" }];
   const cleanTypeName = (s) => (typeof s === "string" ? s.replace(/[^\p{L}\p{N} &'\-]/gu, "").replace(/\s+/g, " ").trim().slice(0, 30) : "");
   function readTypes(doc) {
     const raw = doc && Array.isArray(doc.types) ? doc.types : null;
     if (!raw) return DEFAULT_TYPES.map(t => ({ ...t }));
     const out = [], seen = new Set();
     for (const t of raw.slice(0, 40)) {
-      const name = cleanTypeName(t && t.name); if (!name || seen.has(name.toLowerCase())) continue;
+      const name = cleanTypeName(t && t.name); if (!name || seen.has(name.toLowerCase()) || name.toLowerCase() === "other") continue;
       seen.add(name.toLowerCase()); out.push({ name, color: PALETTE.includes(t.color) ? t.color : (BUILTIN_COLOR[name] || "other"), ...(t.hidden ? { hidden: true } : {}) });
     }
-    const oi = out.findIndex(t => t.name.toLowerCase() === "other");
-    if (oi >= 0 && oi < out.length - 1) out.push(out.splice(oi, 1)[0]);
     return out.length ? out : DEFAULT_TYPES.map(t => ({ ...t }));
   }
   let TYPES = DEFAULT_TYPES.map(t => ({ ...t }));
@@ -709,7 +707,7 @@ a.btn { text-decoration: none; display: inline-block; }
     // e.g. "Kayaking" → Paddle → your "Paddle ocean" type
     const family = ACTIVITIES.find(a => a.toLowerCase().startsWith(mapped.toLowerCase())) || ACTIVITIES.find(a => a.toLowerCase().includes(mapped.toLowerCase()));
     if (family && mapped !== "Other") return family;
-    return ACTIVITIES.find(a => a.toLowerCase() === "other") || ACTIVITIES[ACTIVITIES.length - 1];
+    return ACTIVITIES[0];
   }
   const cssVar = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
   const MAX_MEMBERS = 40;
@@ -1729,7 +1727,7 @@ a.btn { text-decoration: none; display: inline-block; }
       if (!Array.isArray(F.stars)) F.stars = [];
       const active = F.acts.length || F.stars.length || F.range !== "all" || F.cond !== "all";
       const ord = (a) => { const i = ACTIVITIES.indexOf(a); return i < 0 ? 999 : i; };
-      const actsHere = [...new Set(list.map(x => x.activity))].sort((a, b) => ord(a) - ord(b) || a.localeCompare(b));
+      const actsHere = [...new Set(list.map(x => x.activity))].filter(a => a.toLowerCase() !== "other").sort((a, b) => ord(a) - ord(b) || a.localeCompare(b));
       const [rf, rt] = F.range === "week" ? [weekStart(t), addDays(weekStart(t), 6)] : F.range === "month" ? periodRange("month", t) : F.range === "custom" ? [F.from <= F.to ? F.from : F.to, F.from <= F.to ? F.to : F.from] : ["0000-00-00", "9999-99-99"];
       const keep = (x) => (!F.acts.length || F.acts.includes(x.activity)) && (!F.stars.length || F.stars.includes(x.rating || 0)) && x.date >= rf && x.date <= rt && (F.cond === "all" || x.cond === F.cond);
       const sel = (id, label, val, opts, on) => h("div", { class: "field" }, h("label", { for: id }, label), h("select", { id, onchange: (e) => { on(e.target.value); ui.showDays = 30; render(); } }, opts.map(([k, l]) => h("option", { value: k, selected: k === val }, l))));
@@ -2184,7 +2182,7 @@ a.btn { text-decoration: none; display: inline-block; }
       if (ui.colorFor === t.name) listEl.append(h("div", { class: "swatches inline", role: "group", "aria-label": `Colour for ${t.name}` }, PALETTE.map(c => h("button", { type: "button", class: "sw", style: `background:var(--a-${c})`, "aria-label": COLOR_NAME[c], title: COLOR_NAME[c] + (TYPES.some(x => x.color === c && x.name !== t.name) ? " (in use)" : ""), "aria-pressed": String(t.color === c),
         onclick: async (e) => { if (c === t.color) { ui.colorFor = null; render(); return; } e.currentTarget.disabled = true; try { await save(TYPES.map(x => x.name === t.name ? { ...x, color: c } : x)); ui.colorFor = null; } catch (er) { err.textContent = "Couldn't change the colour."; writeFailed(er); } } }))));
     });
-    const orphans = actsIn(list).filter(a => !ACTIVITIES.includes(a));
+    const orphans = actsIn(list).filter(a => !ACTIVITIES.includes(a) && a.toLowerCase() !== "other");
 
     // add a type
     const f = ui.typeForm || (ui.typeForm = { name: "", color: PALETTE.find(c => !TYPES.some(t => t.color === c)) || "other", weight: "0.5" });
@@ -2193,6 +2191,7 @@ a.btn { text-decoration: none; display: inline-block; }
       const name = cleanTypeName(f.name);
       const w = parseFloat(f.weight);
       if (!name) { err.textContent = "Give the type a name, like Kayak or Mountain bike."; return; }
+      if (name.toLowerCase() === "other") { err.textContent = "Other isn't available as a type. Give it a specific name, like Kayak or Yoga."; return; }
       if (TYPES.some(t => t.name.toLowerCase() === name.toLowerCase())) { err.textContent = `${name} is already in your list.`; return; }
       if (TYPES.length >= 40) { err.textContent = "That's the most types you can have. Delete one first."; return; }
       if (!(w >= 0 && w <= 10)) { err.textContent = "Weight should be between 0 and 10 (running is 1)."; return; }
@@ -2521,14 +2520,15 @@ a.btn { text-decoration: none; display: inline-block; }
   }
 
   // ---------- 7 Day Streak, excused days, skipped days ----------
-  const REASONS = [{ k: "sick", l: "Sick / injured" }, { k: "work", l: "Work" }, { k: "family", l: "Family" }, { k: "travel", l: "Travel" }, { k: "other", l: "Other" }];
-  const reasonLabel = (k) => (REASONS.find(r => r.k === k) || REASONS[REASONS.length - 1]).l;
+  const REASONS = [{ k: "sick", l: "Sick / injured" }, { k: "work", l: "Work" }, { k: "family", l: "Family" }, { k: "travel", l: "Travel" }];
+  const ALL_REASONS = [...REASONS, { k: "other", l: "Other" }]; // "other" kept only so older excused days still show
+  const reasonLabel = (k) => (ALL_REASONS.find(r => r.k === k) || ALL_REASONS[ALL_REASONS.length - 1]).l;
   const EX_LIMIT = 2;      // valid excused days allowed in any rolling 7 days
   const EX_BACKFILL = 2;   // an excused day can be logged for today or up to 2 days back
   const STREAK_GOAL = 7;
   function cleanDay(d) {
     d = d || {};
-    return { date: isYmd(d.date) ? d.date : null, reason: REASONS.some(r => r.k === d.reason) ? d.reason : "other",
+    return { date: isYmd(d.date) ? d.date : null, reason: ALL_REASONS.some(r => r.k === d.reason) ? d.reason : "other",
       note: typeof d.note === "string" ? d.note.slice(0, 300) : "", loggedAt: typeof d.loggedAt === "number" ? d.loggedAt : 0 };
   }
   const myDays = () => (me && members.get(me) && members.get(me).days) ? members.get(me).days : new Map();
@@ -2829,7 +2829,7 @@ a.btn { text-decoration: none; display: inline-block; }
     }
     if (stOn("excused")) {
       const ex = rows.filter(r => r.status === "excused");
-      const counts = REASONS.map(r => [r, ex.filter(x => x.reason === r.k).length]).filter(([, n]) => n);
+      const counts = ALL_REASONS.map(r => [r, ex.filter(x => x.reason === r.k).length]).filter(([, n]) => n);
       const over = ex.filter(r => r.over).length;
       sc.append(h("div", { class: "sumrow" }, h("span", { class: "n" }, ex.length), h("span", null, `excused day${ex.length === 1 ? "" : "s"}`),
         h("span", { class: "small muted" }, counts.map(([r, n]) => `${r.l} ${n}`).join(" · "))));
