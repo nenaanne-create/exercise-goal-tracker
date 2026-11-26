@@ -1645,8 +1645,8 @@ a.btn { text-decoration: none; display: inline-block; }
     const st = streaks(list.map(s => s.date), t);
     const tile = (k, tot, extra) => h("div", { class: "tile" }, h("span", { class: "k" }, k), h("span", { class: "v" }, fmtKm(tot.km), h("small", null, "km")), h("span", { class: "s" }, `${fmtDuration(tot.min)} · ${tot.sessions} session${tot.sessions === 1 ? "" : "s"}`), extra);
     const dg = dailyGoal();
-    if (ready && me) main.append(streakCard());
     if (ready) main.append(dailySummary(list, dg, t));
+    if (ready && me) main.append(streakCard());
     const ts = dg ? goalStreaks(list, dg, t) : null;
     const unitW = isWeek(dg) ? "week" : "day";
     main.append(h("div", { class: "grid g4" }, tile("Today", tt), tile("This week", tw), tile("This month", tm),
