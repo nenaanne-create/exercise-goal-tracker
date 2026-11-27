@@ -19,20 +19,18 @@
   --accent: #0b6e8a;
   --accent-ink: #ffffff;
   --soft: #e3ecef;
-  --good: #2e7d4f;
-  --bad: #c0392b;
-  --a-ride: #2563eb;
-  --a-paddle: #0891b2;
-  --a-run: #ea580c;
-  --a-walk: #8b5a2b;
-  --a-swim: #7c3aed;
-  --a-gym: #c026d3;
-  --a-other: #6b7280;
+  /* colour-blind-safe set (Okabe–Ito based): no red or green, each colour differs in hue and lightness */
+  --good: #1a5fb4;
+  --bad: #b54d00;
+  --a-ride: #0072b2;
+  --a-paddle: #56b4e9;
+  --a-run: #e69f00;
+  --a-walk: #7a4a1e;
+  --a-swim: #f0e442;
+  --a-gym: #cc79a7;
+  --a-other: #9e9e9e;
   --a-amber: #ca8a04;
-  --a-indigo: #1e3a8a;
-  --a-red: #dc2626;
-  --a-olive: #111827;
-  --a-pink: #ec4899;
+  --a-olive: #000000;
   --shadow: 0 1px 2px rgba(15,30,40,.07), 0 3px 10px rgba(15,30,40,.05);
   --f-display: "Barlow Condensed", "Arial Narrow", sans-serif;
   --f-body: "Barlow", "Segoe UI", system-ui, sans-serif;
@@ -41,16 +39,16 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #11171c; --surface: #19222a; --ink: #e5ebef; --muted: #98a6b1; --line: #2b3741;
-    --accent: #45b4d3; --accent-ink: #0a1418; --soft: #1f2c35; --good: #5cc08a; --bad: #ef6f62;
-    --a-ride: #60a5fa; --a-paddle: #22d3ee; --a-run: #fb923c; --a-walk: #c08a5a; --a-swim: #a78bfa; --a-gym: #e879f9; --a-other: #9ca3af; --a-amber: #facc15; --a-indigo: #818cf8; --a-red: #f87171; --a-olive: #f3f4f6; --a-pink: #f9a8d4;
+    --accent: #45b4d3; --accent-ink: #0a1418; --soft: #1f2c35; --good: #7cb7ff; --bad: #ff9d5c;
+    --a-ride: #4a90e2; --a-paddle: #9ad7fa; --a-run: #f5a623; --a-walk: #b07a45; --a-swim: #f7ec6e; --a-gym: #e7a3c8; --a-other: #a8a8a8; --a-amber: #facc15; --a-olive: #f3f4f6;
     --shadow: 0 1px 2px rgba(0,0,0,.45);
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #11171c; --surface: #19222a; --ink: #e5ebef; --muted: #98a6b1; --line: #2b3741;
-  --accent: #45b4d3; --accent-ink: #0a1418; --soft: #1f2c35; --good: #5cc08a; --bad: #ef6f62;
-  --a-ride: #60a5fa; --a-paddle: #22d3ee; --a-run: #fb923c; --a-walk: #c08a5a; --a-swim: #a78bfa; --a-gym: #e879f9; --a-other: #9ca3af; --a-amber: #facc15; --a-indigo: #818cf8; --a-red: #f87171; --a-olive: #f3f4f6; --a-pink: #f9a8d4;
+  --accent: #45b4d3; --accent-ink: #0a1418; --soft: #1f2c35; --good: #7cb7ff; --bad: #ff9d5c;
+  --a-ride: #4a90e2; --a-paddle: #9ad7fa; --a-run: #f5a623; --a-walk: #b07a45; --a-swim: #f7ec6e; --a-gym: #e7a3c8; --a-other: #a8a8a8; --a-amber: #facc15; --a-olive: #f3f4f6;
   --shadow: 0 1px 2px rgba(0,0,0,.45);
   color-scheme: dark;
 }
@@ -106,9 +104,9 @@ main { max-width: 760px; margin: 0 auto; padding: 14px 16px 24px; display: flex;
 .acts.editing .act .x { margin-left: 4px; color: var(--bad); font-weight: 700; }
 .acts.editing .act.locked { opacity: .45; }
 .act { border: 1px solid var(--line); background: var(--bg); border-radius: 999px; padding: 6px 12px; font-weight: 600; font-size: 0.875rem; display: inline-flex; align-items: center; gap: 6px; }
-.act[aria-pressed="true"] { background: var(--ac); border-color: var(--ac); color: #fff; }
+.act[aria-pressed="true"] { background: var(--ac); border-color: var(--ac); color: var(--aci, #fff); }
 .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ac); flex: none; display: inline-block; }
-.act[aria-pressed="true"] .dot { background: #fff; }
+.act[aria-pressed="true"] .dot { background: var(--aci, #fff); }
 
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
 .seg button { border: 0; background: var(--surface); padding: 6px 12px; font-weight: 600; font-size: 0.8125rem; border-right: 1px solid var(--line); }
@@ -226,7 +224,6 @@ table.t tr.me td { background: var(--soft); }
 .swatches.inline { padding: 4px 0 10px 26px; }
 .cbtn { width: 18px; height: 18px; border-radius: 50%; background: var(--ac); border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--line); padding: 0; }
 .cbtn:hover, .cbtn[aria-expanded="true"] { box-shadow: 0 0 0 2px var(--ink); }
-.act[aria-pressed="true"] { text-shadow: 0 0 2px rgba(0,0,0,.55); }
 .sw { width: 30px; height: 30px; border-radius: 50%; border: 2px solid transparent; }
 .sw[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--ink); }
 .apptag { display: inline-block; margin-left: 6px; font-size: 0.8125rem; font-weight: 700; letter-spacing: .03em; color: #fff; background: #d0021b; border-radius: 3px; padding: 0 5px; vertical-align: 2px; }
@@ -277,7 +274,7 @@ a.btn { text-decoration: none; display: inline-block; }
 .rstep.got { opacity: .9; background: color-mix(in srgb, var(--rk2) 70%, var(--surface)); }
 .rstep.on { opacity: 1; background: linear-gradient(135deg, var(--rk2), var(--rk)); transform: scale(1.08); box-shadow: 0 3px 10px rgba(0,0,0,.18); }
 .rstep.on b, .rstep.on i { color: var(--rkink); }
-.rpace { font-weight: 700; font-size: 0.875rem; padding: 5px 12px; border-radius: 999px; background: color-mix(in srgb, var(--a-red) 12%, var(--surface)); color: var(--a-red); }
+.rpace { font-weight: 700; font-size: 0.875rem; padding: 5px 12px; border-radius: 999px; background: color-mix(in srgb, var(--bad) 12%, var(--surface)); color: var(--bad); }
 .rpace.ok { background: color-mix(in srgb, var(--good) 14%, var(--surface)); color: var(--good); }
 .btn.rkbtn { white-space: nowrap; flex: 0 0 auto; background: linear-gradient(135deg, var(--rk2), var(--rk)); color: var(--rkink); border-color: var(--rk); }
 .rkrows { display: flex; flex-direction: column; gap: 6px; }
@@ -418,7 +415,7 @@ table.t td { white-space: nowrap; }
     <div>
       <h1>Exercise Tracker</h1>
       <div class="status" id="status">Connecting…</div>
-      <div class="status build" id="build">Build 20 · 28 Nov 2026 · Copyright © 2026 Nena Sorensen &amp; Andrew Sorensen. All rights reserved.</div>
+      <div class="status build" id="build">Build 21 · 28 Nov 2026 · Copyright © 2026 Nena Sorensen &amp; Andrew Sorensen. All rights reserved.</div>
     </div>
     <nav class="tabs" aria-label="Sections">
       <a href="#log" data-view="log">Log</a>
@@ -684,8 +681,11 @@ table.t td { white-space: nowrap; }
 (() => {
   const { ACTIVITIES: BUILTIN, ymd, parseYmd, addDays, isYmd, weekStart, periodRange, parseDuration, fmtDuration, fmtKm, pace, parseDateLoose, parseWorkoutCSV, summariseTrack, streaks } = window.ET;
   // ----- activity types: each person keeps their own list (name + colour) -----
-  const PALETTE = ["ride", "paddle", "run", "walk", "swim", "gym", "other", "amber", "indigo", "red", "olive", "pink"];
-  const COLOR_NAME = { ride: "Blue", paddle: "Cyan", run: "Orange", walk: "Brown", swim: "Purple", gym: "Magenta", other: "Grey", amber: "Gold", indigo: "Navy", red: "Red", olive: "Black", pink: "Pink" };
+  // 8 colour-blind-safe colours: no red or green, and no two alike (only one dark blue)
+  const PALETTE = ["ride", "paddle", "run", "swim", "walk", "gym", "other", "olive"];
+  const COLOR_NAME = { ride: "Blue", paddle: "Sky blue", run: "Orange", walk: "Brown", swim: "Yellow", gym: "Pink", other: "Grey", olive: "Black" };
+  // colours from older builds move to the nearest new one
+  const LEGACY_COLOR = { amber: "swim", indigo: "ride", red: "run", pink: "gym" };
   const BUILTIN_COLOR = { Ride: "ride", Paddle: "paddle", Run: "run", Walk: "walk", Swim: "swim", Gym: "gym", Other: "other" };
   // Main exercises first: ocean paddling and riding
   const DEFAULT_TYPES = [
@@ -698,7 +698,7 @@ table.t td { white-space: nowrap; }
     const out = [], seen = new Set();
     for (const t of raw.slice(0, 40)) {
       const name = cleanTypeName(t && t.name); if (!name || seen.has(name.toLowerCase()) || name.toLowerCase() === "other") continue;
-      seen.add(name.toLowerCase()); out.push({ name, color: PALETTE.includes(t.color) ? t.color : (BUILTIN_COLOR[name] || "other"), ...(t.hidden ? { hidden: true } : {}) });
+      seen.add(name.toLowerCase()); out.push({ name, color: PALETTE.includes(t.color) ? t.color : (LEGACY_COLOR[t.color] || BUILTIN_COLOR[name] || "other"), ...(t.hidden ? { hidden: true } : {}) });
     }
     return out.length ? out : DEFAULT_TYPES.map(t => ({ ...t }));
   }
@@ -706,6 +706,13 @@ table.t td { white-space: nowrap; }
   let ACTIVITIES = TYPES.map(t => t.name);
   const colorKey = (a) => { const t = TYPES.find(x => x.name === a); return t ? t.color : (BUILTIN_COLOR[a] || "other"); };
   const acol = (a) => `var(--a-${colorKey(a)})`;
+  // black or white text, whichever reads better on the activity colour
+  const aink = (a) => {
+    const m = /^#?([0-9a-f]{6})$/i.exec(cssVar(`--a-${colorKey(a)}`)); if (!m) return "#fff";
+    const n = parseInt(m[1], 16), lin = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
+    const L = 0.2126 * lin(n >> 16) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255);
+    return L > 0.18 ? "#000" : "#fff";
+  };
   // the current types plus any older type names still used by sessions in `list`
   const actsIn = (list) => { const extra = []; for (const s of list) if (s.activity && !ACTIVITIES.includes(s.activity) && !extra.includes(s.activity)) extra.push(s.activity); return [...ACTIVITIES, ...extra]; };
   function resolveType(raw) {
@@ -775,8 +782,8 @@ table.t td { white-space: nowrap; }
   }
   // colour ranks: [light, dark, text]
   const RANK_COLORS = { grey: ["#eef0f3", "#6b7280", "#1f2937"], bronze: ["#f6c79a", "#a0522d", "#3d1e08"], silver: ["#f8fafc", "#7b8794", "#1e293b"], gold: ["#fff3b0", "#d4a017", "#4a3300"],
-    platinum: ["#e6fbff", "#3aa3bb", "#073642"], ruby: ["#fecdd3", "#be123c", "#4c0519"], emerald: ["#d1fae5", "#059669", "#022c22"], amethyst: ["#ede9fe", "#7c3aed", "#2e1065"] };
-  const RANK_COLOR_NAME = { grey: "Grey", bronze: "Bronze", silver: "Silver", gold: "Gold", platinum: "Platinum", ruby: "Ruby", emerald: "Emerald", amethyst: "Amethyst" };
+    platinum: ["#e6fbff", "#3aa3bb", "#073642"], ruby: ["#fbcfe8", "#c0508f", "#4a0f30"], emerald: ["#dbeafe", "#1d4ed8", "#0b1f5c"], amethyst: ["#ede9fe", "#7c3aed", "#2e1065"] };
+  const RANK_COLOR_NAME = { grey: "Grey", bronze: "Bronze", silver: "Silver", gold: "Gold", platinum: "Platinum", ruby: "Rose quartz", emerald: "Sapphire", amethyst: "Amethyst" };
   const DEFAULT_RANKS = [{ name: "Warming up", pct: 0, color: "grey" }, { name: "Bronze", pct: 50, color: "bronze" }, { name: "Silver", pct: 75, color: "silver" }, { name: "Gold", pct: 100, color: "gold" }, { name: "Platinum", pct: 120, color: "platinum" }];
   function readRanks(raw) {
     if (!Array.isArray(raw)) return DEFAULT_RANKS.map(r => ({ ...r }));
@@ -1157,8 +1164,8 @@ table.t td { white-space: nowrap; }
     playCheer();
   }
   // ----- picture summary (PNG) to share or save -----
-  const PIC_COLORS = { ride: "#2563eb", paddle: "#0891b2", run: "#ea580c", walk: "#8b5a2b", swim: "#7c3aed", gym: "#c026d3", other: "#6b7280", amber: "#ca8a04", indigo: "#1e3a8a", red: "#dc2626", olive: "#111827", pink: "#ec4899" };
-  const picCol = (a) => PIC_COLORS[colorKey(a)] || "#6b7280";
+  const PIC_COLORS = { ride: "#0072b2", paddle: "#56b4e9", run: "#e69f00", walk: "#7a4a1e", swim: "#f0e442", gym: "#cc79a7", other: "#9e9e9e", olive: "#000000" };
+  const picCol = (a) => PIC_COLORS[colorKey(a)] || "#9e9e9e";
   function picPeriod(kind, t) {
     if (kind === "lastweek") { const ws = addDays(weekStart(t), -7); return { from: ws, to: addDays(ws, 6), label: "Last week", isWeek: true }; }
     if (kind === "month") { const [f, to] = periodRange("month", t); return { from: f, to, label: parseYmd(f).toLocaleDateString("en-AU", { month: "long", year: "numeric" }), isWeek: false }; }
@@ -1173,7 +1180,7 @@ table.t td { white-space: nowrap; }
     const W = 1080, H = 1350, c = document.createElement("canvas"); c.width = W; c.height = H;
     const x = c.getContext("2d"); if (!x) throw new Error("no canvas");
     const DISP = "'Barlow Condensed', 'Arial Narrow', sans-serif", BODY = "'Barlow', 'Segoe UI', system-ui, sans-serif";
-    const INK = "#17212b", MUTED = "#5b6874", SOFT = "#e3ecef", GOOD = "#2e7d4f";
+    const INK = "#17212b", MUTED = "#5b6874", SOFT = "#e3ecef", GOOD = "#1a5fb4";
     const font = (w, px, fam) => { x.font = `${w} ${px}px ${fam || BODY}`; };
     const rr = (X, Y, w, hh, r) => { x.beginPath(); x.moveTo(X + r, Y); x.arcTo(X + w, Y, X + w, Y + hh, r); x.arcTo(X + w, Y + hh, X, Y + hh, r); x.arcTo(X, Y + hh, X, Y, r); x.arcTo(X, Y, X + w, Y, r); x.closePath(); };
     // background
@@ -1515,7 +1522,7 @@ table.t td { white-space: nowrap; }
     };
     const wrap = h("div", { class: "acts" + (editing ? " editing" : ""), role: "group", "aria-label": "Activity" }, shown.map(a => {
       const canRemove = editing && !used.has(a) && shown.length > 1;
-      return h("button", { class: "act" + (editing && used.has(a) ? " locked" : ""), type: "button", style: `--ac:${acol(a)}`, "aria-pressed": String(!editing && a === cur),
+      return h("button", { class: "act" + (editing && used.has(a) ? " locked" : ""), type: "button", style: `--ac:${acol(a)};--aci:${aink(a)}`, "aria-pressed": String(!editing && a === cur),
         "aria-label": canRemove ? `Remove ${a}` : null, title: editing && used.has(a) ? "Has sessions, so it can't be removed here" : null,
         onclick: () => { if (canRemove) removeTypes([a]); else if (!editing) onPick(a); } },
         h("span", { class: "dot" }), a, canRemove ? h("span", { class: "x", "aria-hidden": "true" }, "✕") : null);
@@ -2078,7 +2085,7 @@ table.t td { white-space: nowrap; }
     // week strip
     const ws = weekStart(t); const days = []; for (let i = 0; i < 7; i++) days.push(addDays(ws, i));
     const vals = days.map(d => (d > t ? null : dayVal(list, d, g)));
-    const pair = g.metric === "wkm"; // show actual km (grey) beside weighted goal km (green)
+    const pair = g.metric === "wkm"; // show actual km (by activity) beside weighted goal km (blue, striped)
     const actuals = days.map(d => (d > t ? null : totals(list, d, d, g.activity).km));
     const wScale = niceCeil(Math.max(50, g.target, ...vals.filter(x => x != null), ...(pair ? actuals.filter(x => x != null) : [])) || 1);
     const strip = h("div", { class: "week", role: "group", "aria-label": "This week" });
@@ -2916,7 +2923,7 @@ table.t td { white-space: nowrap; }
   }
   function showDistBadge(kind, start, n) {
     const g = distGoal(kind); const name = kind === "week" ? "Weekly" : "Monthly";
-    const col = kind === "week" ? "--a-ride" : "--a-swim";
+    const col = kind === "week" ? "--a-ride" : "--a-walk";
     const prevFocus = document.activeElement;
     const close = () => { ov.remove(); document.removeEventListener("keydown", onKey); if (prevFocus && prevFocus.focus) try { prevFocus.focus(); } catch {} scheduleRender(); };
     const onKey = (e) => { if (e.key === "Escape") close(); };
