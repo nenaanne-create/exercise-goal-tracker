@@ -377,6 +377,8 @@ a.btn { text-decoration: none; display: inline-block; }
 @media (max-width: 520px) { .drow { grid-template-columns: auto minmax(0, 1fr); } .drow > :nth-child(3) { grid-column: 1 / -1; } .drow > :nth-child(4) { grid-column: 1 / -1; justify-self: start; } }
 .insight { background: color-mix(in srgb, var(--a-amber) 16%, var(--surface)); border-radius: 8px; padding: 9px 12px; font-size: 0.8125rem; }
 .build { font-size: 0.8125rem; }
+.danger-zone { border-top: 4px solid var(--bad); }
+.exform.confirm { border-color: var(--bad); }
 /* merged from claude.ai Build 10 */
 .toast { position: fixed; left: 50%; top: 14px; transform: translate(-50%, -20px); opacity: 0; z-index: 60; max-width: min(92vw, 520px); background: var(--good); color: #fff; font-weight: 700; font-size: 1rem; padding: 12px 16px; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.25); transition: opacity .2s, transform .2s; pointer-events: none; }
 .toast.bad { background: var(--bad); }
@@ -416,15 +418,14 @@ table.t td { white-space: nowrap; }
     <div>
       <h1>Exercise Tracker</h1>
       <div class="status" id="status">Connecting…</div>
-      <div class="status build" id="build">Build 15 · 28 Nov 2026 · Copyright © 2026 Nena Sorensen &amp; Andrew Sorensen. All rights reserved.</div>
+      <div class="status build" id="build">Build 18 · 28 Nov 2026 · Copyright © 2026 Nena Sorensen &amp; Andrew Sorensen. All rights reserved.</div>
     </div>
     <nav class="tabs" aria-label="Sections">
       <a href="#log" data-view="log">Log</a>
       <a href="#stats" data-view="stats">Stats</a>
-      <a href="#days" data-view="days">Search</a>
-      <a href="#goals" data-view="goals">Goals</a>
-      <a href="#import" data-view="import">Import</a>
-      <a href="#settings" data-view="settings">Settings</a>
+      <a href="#days" data-view="days">Filter/<wbr>Search</a>
+      <a href="#goals" data-view="goals">Settings</a>
+      <a href="#import" data-view="import">Import/<wbr>Export</a>
     </nav>
   </div>
 </header>
@@ -887,7 +888,7 @@ table.t td { white-space: nowrap; }
     SET = readSettings(myDocNow);
     const main = $("main"); main.textContent = "";
     if (!db) { main.append(h("div", { class: "card" }, h("div", { class: "empty" }, $("status").textContent))); return; }
-    ({ log: viewLog, stats: viewStats, days: viewDays, goals: viewGoals, crew: viewCrew, import: viewImport, settings: viewSettings })[view](main);
+    ({ log: viewLog, stats: viewStats, days: viewDays, goals: viewGoals, import: viewImport })[view](main);
     resolveNames();
     if (!maybeBadge() && !maybeDistBadge()) maybeCelebrate();
     maybeNudge();
@@ -1519,7 +1520,7 @@ table.t td { white-space: nowrap; }
         onclick: () => { if (canRemove) removeTypes([a]); else if (!editing) onPick(a); } },
         h("span", { class: "dot" }), a, canRemove ? h("span", { class: "x", "aria-hidden": "true" }, "✕") : null);
     }),
-      editing ? null : h("button", { class: "act edit", type: "button", onclick: () => { ui.scrollTypes = true; location.hash = "#settings"; } }, TYPES.some(t => t.hidden) ? `+ Types (${TYPES.filter(t => t.hidden).length} hidden)` : "+ Types"),
+      editing ? null : h("button", { class: "act edit", type: "button", onclick: () => { ui.scrollTypes = true; location.hash = "#goals"; } }, TYPES.some(t => t.hidden) ? `+ Types (${TYPES.filter(t => t.hidden).length} hidden)` : "+ Types"),
       unused.length || editing ? h("button", { class: "act edit", type: "button", "aria-pressed": String(editing), onclick: () => { ui.actEdit = !editing; render(); } }, editing ? "Done" : "− Remove unused") : null);
     if (!editing) return wrap;
     return h("div", { class: "field" }, wrap,
@@ -1917,10 +1918,6 @@ table.t td { white-space: nowrap; }
 
   function viewGoals(main) {
     const list = [...mine().values()]; const t = today(); const goals = myGoals();
-    const st = streaks(list.map(s => s.date), t);
-    main.append(h("div", { class: "grid g2" },
-      h("div", { class: "tile" }, h("span", { class: "k" }, "Current streak"), h("span", { class: "v" }, st.current, h("small", null, st.current === 1 ? "day" : "days")), h("span", { class: "s" }, st.loggedToday ? "Logged today ✓" : st.current ? "Log a session today to keep it" : "Log a session to start one")),
-      h("div", { class: "tile" }, h("span", { class: "k" }, "Best streak"), h("span", { class: "v" }, st.best, h("small", null, st.best === 1 ? "day" : "days")), h("span", { class: "s" }, "Days in a row with any activity"))));
 
     const card = h("div", { class: "card" }, h("h2", null, "Your goals"));
     if (ui.goalMsg && Date.now() - ui.goalMsg.at < 8000) card.append(h("div", { class: "notice ok", role: "status" }, ui.goalMsg.text));
@@ -1995,7 +1992,13 @@ table.t td { white-space: nowrap; }
         f.metric === "wkm" ? h("p", { class: "hint", style: "margin:0" }, "Goal km are weighted: actual km × activity weight × conditions. Set the weights on the Settings tab.") : null,
         same ? h("div", { class: "notice" }, `You already have ${goalName(same)}: ${metricFmt(same.target, same.metric)} a ${same.period}. Saving will update it to the new target, not add a second goal.`) : null,
         h("div", { class: "row" }, add), err));
-
+      main.append(textSizeCard());
+      main.append(celebrationCard());
+      main.append(typesCard());
+      main.append(weightingCard());
+      main.append(ranksCard());
+      main.append(deleteAllCard());
+      if (ui.scrollTypes) { ui.scrollTypes = false; setTimeout(() => { const el = document.getElementById("types"); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); }, 50); }
     }
   }
 
@@ -2049,7 +2052,7 @@ table.t td { white-space: nowrap; }
       if (canWrite && me) {
         const b = h("button", { class: "btn primary", type: "button" }, "Set 15 goal km a week");
         b.addEventListener("click", async () => { b.disabled = true; try { await saveGoals([...myGoals(), cleanGoal({ id: String(Date.now()), activity: "All", metric: "wkm", period: "week", target: 15 })]); } catch (e) { b.disabled = false; writeFailed(e); } });
-        card.append(h("div", { class: "row" }, b, h("a", { href: "#goals", class: "small" }, "Or choose your own in Goals")));
+        card.append(h("div", { class: "row" }, b, h("a", { href: "#goals", class: "small" }, "Or choose your own in Settings")));
       }
       return card;
     }
@@ -2063,7 +2066,7 @@ table.t td { white-space: nowrap; }
     bar.append(fill, h("div", { class: "dmark", style: `left:${100 * g.target / scale}%` }, h("span", null, shortVal(g.target, g.metric).replace(" goal km", ""))));
     const label = sel === t ? "Today" : fmtDay(sel);
     card.append(h("h2", null, label, h("span", { class: "right" }, `Target ${metricFmt(g.target, g.metric)} a day`)),
-      ...(g.metric === "wkm" ? [h("p", { class: "basis" }, h("b", null, "Based on weighted goal km: "), "actual km × your activity weight × conditions (wind). ", h("a", { href: "#settings" }, "See weights"))] : []),
+      ...(g.metric === "wkm" ? [h("p", { class: "basis" }, h("b", null, "Based on weighted goal km: "), "actual km × your activity weight × conditions (wind). ", h("a", { href: "#goals" }, "See weights"))] : []),
       h("div", { class: "dhead" },
         h("span", { class: "dbig" }, shortVal(v, g.metric).replace(" goal km", ""), h("small", null, ` of ${shortVal(g.target, g.metric)}`)),
         h("span", { class: "dstate" + (done ? " ok" : "") }, done ? `Done ✓ +${shortVal(v - g.target, g.metric)} over` : `${shortVal(g.target - v, g.metric)} to go`)),
@@ -2137,7 +2140,7 @@ table.t td { white-space: nowrap; }
     const fmtS = (d) => parseYmd(d).toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short" });
     card.append(h("h2", null, "This week", h("span", { class: "right" }, `Target ${metricFmt(g.target, g.metric)} a week`)),
       h("p", { class: "basis", style: "margin-top:-6px" }, `${fmtS(ws)} – ${fmtS(we)}`),
-      ...(g.metric === "wkm" ? [h("p", { class: "basis" }, h("b", null, "Based on weighted goal km: "), "actual km × your activity weight × conditions (wind). ", h("a", { href: "#settings" }, "See weights"))] : []),
+      ...(g.metric === "wkm" ? [h("p", { class: "basis" }, h("b", null, "Based on weighted goal km: "), "actual km × your activity weight × conditions (wind). ", h("a", { href: "#goals" }, "See weights"))] : []),
       h("div", { class: "dhead" },
         h("span", { class: "dbig" }, shortVal(v, g.metric).replace(" goal km", ""), h("small", null, ` of ${shortVal(g.target, g.metric)}`)),
         h("span", { class: "dstate" + (done ? " ok" : "") }, done ? `Done ✓ +${shortVal(v - g.target, g.metric)} over` : `${shortVal(g.target - v, g.metric)} to go · ${daysLeft <= 1 ? "last day" : daysLeft + " days left"}`)),
@@ -2347,39 +2350,66 @@ table.t td { white-space: nowrap; }
       h("button", { class: "btn ghost", type: "button", onclick: showMyRank }, "🏅 Preview rank popup")), err);
     return card;
   }
-  function viewSettings(main) {
-    if (!canWrite || !me) { main.append(h("div", { class: "card" }, h("h2", null, "Settings"), h("div", { class: "notice" }, "You need edit access to change settings."))); return; }
-    main.append(typesCard());
-    main.append(weightingCard());
-    main.append(ranksCard());
-    main.append(textSizeCard());
-      main.append(celebrationCard());
-    if (window.STANDALONE) main.append(backupCard());
-    if (ui.scrollTypes) { ui.scrollTypes = false; setTimeout(() => { const el = document.getElementById("types"); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); }, 50); }
-  }
-  function viewCrew(main) {
-    const t = today();
-    const [from, to] = periodRange(ui.crewPeriod, t);
-    const rows = [...members.entries()].map(([uid, m]) => {
-      const list = [...m.sessions.values()];
-      return { uid, tot: totals(list, from, to), streak: streaks(list.map(s => s.date), t).current, any: list.length > 0 };
-    }).filter(r => r.any || r.uid === me);
-    rows.sort((a, b) => metricVal(b.tot, ui.crewMetric) - metricVal(a.tot, ui.crewMetric) || b.streak - a.streak);
-    const card = h("div", { class: "card" }, h("h2", null, "Leaderboard"),
+  // ---------- delete all data (bottom of the Settings tab) ----------
+  function deleteAllCard() {
+    const D = ui.wipe || (ui.wipe = { open: false, typed: "", busy: false, done: 0, steps: 0, msg: "", note: "", noteKind: "", err: "" });
+    const n = mine().size, nd = myDays().size, ng = myGoals().length;
+    const card = h("div", { class: "card danger-zone", id: "delete-all" }, h("h2", null, "Delete all data"),
+      h("p", { class: "small", style: "margin:0" }, "Permanently deletes everything you've entered: sessions, excused days, goals, activity types, weighting, ranks, streaks and badges. Your text size and sound choices on this device are kept. ", h("b", null, "This can't be undone.")));
+    if (D.msg) card.append(h("div", { class: "notice ok", role: "status" }, D.msg));
+    if (!D.open) {
+      card.append(h("div", { class: "row" }, h("button", { class: "btn danger", type: "button", disabled: !myDataLoaded(),
+        onclick: () => { Object.assign(D, { open: true, typed: "", msg: "", note: "", err: "" }); render(); setTimeout(() => { const el = document.getElementById("wipe-typed"); if (el) el.scrollIntoView({ behavior: reducedMotion() ? "auto" : "smooth", block: "center" }); }, 50); } },
+        myDataLoaded() ? "Delete all data…" : "Loading…")));
+      return card;
+    }
+    const ok = () => D.typed.trim() === "DELETE";
+    const box = h("div", { class: "exform confirm", role: "group", "aria-labelledby": "wipe-title" },
+      h("div", { class: "lbl", id: "wipe-title" }, "Are you sure?"),
+      h("p", { style: "margin:0" }, `This deletes ${n} session${n === 1 ? "" : "s"}, ${nd} excused day${nd === 1 ? "" : "s"} and ${ng} goal${ng === 1 ? "" : "s"}, and resets activity types, weighting and ranks to the defaults.`),
+      h("div", { class: "lbl" }, "Step 1: Save a backup (recommended)"),
+      h("p", { class: "small muted", style: "margin:0" }, "If you change your mind later, you can bring everything back by restoring the backup on the Import/Export tab."),
       h("div", { class: "row" },
-        h("div", { class: "seg", role: "group", "aria-label": "Period" }, [["week", "This week"], ["month", "This month"], ["year", "This year"]].map(([k, l]) => h("button", { type: "button", "aria-pressed": String(ui.crewPeriod === k), onclick: () => { ui.crewPeriod = k; render(); } }, l))),
-        h("div", { class: "seg", role: "group", "aria-label": "Rank by" }, [["km", "Distance"], ["hours", "Time"], ["sessions", "Sessions"]].map(([k, l]) => h("button", { type: "button", "aria-pressed": String(ui.crewMetric === k), onclick: () => { ui.crewMetric = k; render(); } }, l)))));
-    if (rows.length <= 1) card.append(h("div", { class: "notice" }, "You're the only one here so far. Share this app with friends (give them Can edit access) and they'll appear once they log a session."));
-    card.append(h("div", { class: "tablewrap" }, h("table", { class: "t" },
-      h("thead", null, h("tr", null, h("th", null, "Person"), h("th", null, "Distance"), h("th", null, "Time"), h("th", null, "Sessions"), h("th", null, "Streak"))),
-      h("tbody", null, rows.map((r, i) => h("tr", { class: r.uid === me ? "me" : null },
-        h("td", null, h("span", { class: "rank" }, i + 1), r.uid === me ? "You" : (names.get(r.uid) || "Someone")),
-        h("td", null, fmtKm(r.tot.km) + " km"), h("td", null, fmtDuration(r.tot.min)), h("td", null, r.tot.sessions), h("td", null, r.streak ? `${r.streak}d` : "–")))))));
-    card.append(h("p", { class: "small muted", style: "margin:0" }, "Everyone who can open this app can see each other's sessions and totals."));
-    main.append(card);
+        h("button", { class: "btn", type: "button", disabled: D.busy, onclick: async (e) => { await downloadBackup(e.currentTarget); D.note = ui.backupMsg; D.noteKind = ui.backupKind; ui.backupMsg = ""; render(); } }, "Download backup"),
+        h("button", { class: "btn", type: "button", disabled: D.busy, onclick: async () => { await copyBackup(); D.note = ui.backupMsg; D.noteKind = ui.backupKind; ui.backupMsg = ""; render(); } }, "Copy backup text")));
+    if (D.note) box.append(h("div", { class: "notice" + (D.noteKind ? " " + D.noteKind : ""), role: "status" }, D.note));
+    const go = h("button", { class: "btn danger armed", type: "button", id: "wipe-go", disabled: D.busy || !ok() }, D.busy ? `Deleting… ${D.done} of ${D.steps}` : "Delete everything");
+    go.addEventListener("click", () => runWipe());
+    box.append(h("div", { class: "field" }, h("label", { for: "wipe-typed" }, "Step 2: Type DELETE in capitals to confirm"),
+        h("input", { id: "wipe-typed", type: "text", autocomplete: "off", autocapitalize: "characters", spellcheck: "false", value: D.typed, disabled: D.busy, placeholder: "DELETE",
+          oninput: (e) => { D.typed = e.target.value; const b = document.getElementById("wipe-go"); if (b) b.disabled = D.busy || !ok(); } })),
+      h("div", { class: "row" }, go, h("button", { class: "btn", type: "button", disabled: D.busy, onclick: () => { Object.assign(D, { open: false, typed: "", note: "", err: "" }); render(); } }, "Cancel")),
+      D.err ? h("div", { class: "err", role: "alert" }, D.err) : null);
+    card.append(box);
+    return card;
+  }
+  async function runWipe() {
+    const D = ui.wipe; if (!D || D.busy || D.typed.trim() !== "DELETE" || !me || !canWrite) return;
+    const ids = [...mine().keys()], dates = [...myDays().keys()];
+    Object.assign(D, { busy: true, done: 0, steps: ids.length + dates.length, err: "" }); render();
+    const tick = () => { D.done++; const b = document.getElementById("wipe-go"); if (b) b.textContent = `Deleting… ${D.done} of ${D.steps}`; };
+    try {
+      for (const id of ids) { await retryWrite(() => db.doc(`sessions/${me}/items/${id}`).delete()); tick(); }
+      for (const d of dates) { await retryWrite(() => db.doc(`sessions/${me}/days/${d}`).delete()); tick(); }
+      // reset goals and settings; badge counters start at zero so no popups fire afterwards; the default goal isn't added back
+      const fresh = { joinedAt: Date.now(), goals: [], badge7Seen: 0, distBadges: { week: [], month: [] }, dailyDefaulted: true, weeklyDefaulted: true };
+      await retryWrite(() => db.doc(`sessions/${me}`).set(fresh));
+      const m = members.get(me); if (m) { m.doc = fresh; m.sessions = new Map(); m.days = new Map(); }
+      Object.assign(ui, { editId: null, form: null, ex: null, exSaved: null, restore: null, importRows: [], importWarnings: [], lastFiles: null, goalForm: null, goalEdit: null, goalMsg: null,
+        typeForm: null, wDraft: null, rkDraft: null, colorFor: null, shot: null, pic: null, dayPick: null, openWeeks: null, celebratedLocal: null, badgeShown: null, distShown: null });
+      ui.wipe = { open: false, typed: "", busy: false, done: 0, steps: 0, note: "", noteKind: "", err: "",
+        msg: `All data deleted: ${ids.length} session${ids.length === 1 ? "" : "s"}, ${dates.length} excused day${dates.length === 1 ? "" : "s"}, goals and settings. You're starting fresh.` };
+      toast("✓ All data deleted");
+      render();
+    } catch (e) {
+      Object.assign(D, { busy: false, err: `Stopped after ${D.done} of ${D.steps}. Whatever wasn't deleted yet is still there. Tap Delete everything again to finish.` });
+      toast("Delete stopped before finishing", true);
+      writeFailed(e); render();
+    }
   }
 
   function viewImport(main) {
+    main.append(backupCard());
     const card = h("div", { class: "card" }, h("h2", null, "Import from MapMy"),
       h("p", { style: "margin:0" }, "On the MapMy website, export your workout history as a CSV file, or export a single workout as a GPX file. Then choose the file here. You'll see every session before anything is saved."));
     if (!canWrite || !me) { card.append(h("div", { class: "notice" }, "You need edit access to import sessions.")); main.append(card); return; }
@@ -2681,7 +2711,7 @@ table.t td { white-space: nowrap; }
       if (!editing) {
         if (!(f.date >= addDays(t, -EX_BACKFILL) && f.date <= t)) { err.textContent = `Pick today or up to ${EX_BACKFILL} days back.`; return; }
         if ([...mine().values()].some(s => s.date === f.date)) { err.textContent = `You already logged a session on ${fmtDay(f.date)}, so it counts as exercised.`; return; }
-        if (existing) { err.textContent = `${fmtDay(f.date)} is already excused (${reasonLabel(existing.reason)}). Edit it from the Days tab.`; return; }
+        if (existing) { err.textContent = `${fmtDay(f.date)} is already excused (${reasonLabel(existing.reason)}). Edit it from the Filter/Search tab.`; return; }
         if (left <= 0) { err.textContent = `You've used ${EX_LIMIT} excused days in this 7-day window, so this day would count as skipped.`; return; }
       }
       save.disabled = true;
@@ -2848,7 +2878,7 @@ table.t td { white-space: nowrap; }
       const g = distGoal(kind); const earned = distEarned(kind); const n = earned.length;
       const row = h("div", { class: "goal" }, h("div", { class: "top" }, h("b", null, `${name} distance`),
         h("span", { class: "bdg" + (n ? "" : " none"), title: `${name} distance badges earned` }, n ? `🏅 Badge ×${n}` : "No badge yet")));
-      if (!g) row.append(h("p", { class: "small muted", style: "margin:0" }, `Set a ${name.toLowerCase()} goal measured in distance or goal km to earn this badge. `, h("a", { href: "#goals" }, "Set goals")));
+      if (!g) row.append(h("p", { class: "small muted", style: "margin:0" }, `Set a ${name.toLowerCase()} goal measured in distance or goal km to earn this badge. `, h("a", { href: "#goals" }, "Go to Settings")));
       else {
         const [a, b] = periodRange(kind, t);
         const v = metricVal(totals(list, a, b, g.activity), g.metric);
@@ -2907,7 +2937,7 @@ table.t td { white-space: nowrap; }
     playCheer();
   }
 
-  // ----- Days tab: filters over exercised / excused / skipped days -----
+  // ----- Filter/Search tab: filters over exercised / excused / skipped days -----
   const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
   function dayRange(F, t, first) {
     let from, to = t;
@@ -3032,8 +3062,8 @@ table.t td { white-space: nowrap; }
   }
 
   // ---------- routing & start ----------
-  const VIEWS = window.STANDALONE ? ["log", "stats", "days", "goals", "import", "settings"] : ["log", "stats", "days", "goals", "crew", "import", "settings"];
-  function fromHash() { const v = location.hash.replace("#", ""); return VIEWS.includes(v) ? v : "log"; }
+  const VIEWS = ["log", "stats", "days", "goals", "import"];
+  function fromHash() { const v = location.hash.replace("#", "") === "settings" ? "goals" : location.hash.replace("#", ""); return VIEWS.includes(v) ? v : "log"; }
   window.addEventListener("hashchange", () => { const v = fromHash(); if (v !== view) { view = v; render(); window.scrollTo(0, 0); } });
   view = fromHash();
   render();
