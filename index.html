@@ -24,6 +24,7 @@
   --bad: #b54d00;
   --a-ride: #0072b2;
   --a-paddle: #56b4e9;
+  --a-river: #9b6fd0;
   --a-run: #e69f00;
   --a-walk: #7a4a1e;
   --a-swim: #f0e442;
@@ -39,6 +40,7 @@
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
+    --a-river: #c7a6f0;
     --bg: #11171c; --surface: #19222a; --ink: #e5ebef; --muted: #98a6b1; --line: #2b3741;
     --accent: #45b4d3; --accent-ink: #0a1418; --soft: #1f2c35; --good: #7cb7ff; --bad: #ff9d5c;
     --a-ride: #4a90e2; --a-paddle: #9ad7fa; --a-run: #f5a623; --a-walk: #b07a45; --a-swim: #f7ec6e; --a-gym: #e7a3c8; --a-other: #a8a8a8; --a-amber: #facc15; --a-olive: #f3f4f6; --goal: #ff8a3d;
@@ -47,6 +49,7 @@
   }
 }
 :root[data-theme="dark"] {
+  --a-river: #c7a6f0;
   --bg: #11171c; --surface: #19222a; --ink: #e5ebef; --muted: #98a6b1; --line: #2b3741;
   --accent: #45b4d3; --accent-ink: #0a1418; --soft: #1f2c35; --good: #7cb7ff; --bad: #ff9d5c;
   --a-ride: #4a90e2; --a-paddle: #9ad7fa; --a-run: #f5a623; --a-walk: #b07a45; --a-swim: #f7ec6e; --a-gym: #e7a3c8; --a-other: #a8a8a8; --a-amber: #facc15; --a-olive: #f3f4f6; --goal: #ff8a3d;
@@ -416,7 +419,7 @@ table.t td { white-space: nowrap; }
     <div>
       <h1>Exercise Tracker</h1>
       <div class="status" id="status">Connecting…</div>
-      <div class="status build" id="build">Build 24 · 28 Nov 2026 · Copyright © 2026 Nena Sorensen &amp; Andrew Sorensen. All rights reserved.</div>
+      <div class="status build" id="build">Build 25 · 28 Nov 2026 · Copyright © 2026 Nena Sorensen &amp; Andrew Sorensen. All rights reserved.</div>
     </div>
     <nav class="tabs" aria-label="Sections">
       <a href="#log" data-view="log">Log</a>
@@ -682,15 +685,15 @@ table.t td { white-space: nowrap; }
 (() => {
   const { ACTIVITIES: BUILTIN, ymd, parseYmd, addDays, isYmd, weekStart, periodRange, parseDuration, fmtDuration, fmtKm, pace, parseDateLoose, parseWorkoutCSV, summariseTrack, streaks } = window.ET;
   // ----- activity types: each person keeps their own list (name + colour) -----
-  // 8 colour-blind-safe colours: no red or green, and no two alike (only one dark blue)
-  const PALETTE = ["ride", "paddle", "run", "swim", "walk", "gym", "other", "olive"];
-  const COLOR_NAME = { ride: "Blue", paddle: "Sky blue", run: "Orange", walk: "Brown", swim: "Yellow", gym: "Pink", other: "Grey", olive: "Black" };
+  // 9 colour-blind-safe colours: no red or green, and no two alike (only one dark blue)
+  const PALETTE = ["ride", "paddle", "river", "run", "swim", "walk", "gym", "other", "olive"];
+  const COLOR_NAME = { ride: "Blue", paddle: "Sky blue", river: "Purple", run: "Orange", walk: "Brown", swim: "Yellow", gym: "Pink", other: "Grey", olive: "Black" };
   // colours from older builds move to the nearest new one
   const LEGACY_COLOR = { amber: "swim", indigo: "ride", red: "run", pink: "gym" };
-  const BUILTIN_COLOR = { Ride: "ride", Paddle: "paddle", Run: "run", Walk: "walk", Swim: "swim", Gym: "gym", Other: "other" };
+  const BUILTIN_COLOR = { Ride: "ride", Paddle: "paddle", "Ocean paddle": "paddle", "River paddle": "river", "Paddle ocean": "paddle", "Paddle river": "river", Run: "run", Walk: "walk", Swim: "swim", Gym: "gym", Other: "other" };
   // Main exercises first: ocean paddling and riding
   const DEFAULT_TYPES = [
-    { name: "Paddle ocean", color: "paddle" }, { name: "Ride", color: "ride" }, { name: "Paddle river", color: "indigo" },
+    { name: "Ocean paddle", color: "paddle" }, { name: "Ride", color: "ride" }, { name: "River paddle", color: "river" },
     { name: "Walk", color: "run" }, { name: "Run", color: "red" }, { name: "Swim", color: "swim" }, { name: "Gym", color: "gym" }];
   const cleanTypeName = (s) => (typeof s === "string" ? s.replace(/[^\p{L}\p{N} &'\-]/gu, "").replace(/\s+/g, " ").trim().slice(0, 30) : "");
   function readTypes(doc) {
@@ -721,6 +724,11 @@ table.t td { white-space: nowrap; }
     const exact = ACTIVITIES.find(a => a.toLowerCase() === r) || (r ? ACTIVITIES.find(a => r.includes(a.toLowerCase()) && a.length > 2) : null);
     if (exact) return exact;
     const mapped = window.ET.mapActivity(raw);
+    if (mapped === "Paddle") { // pick ocean or river paddle from words in the activity name
+      const want = /river|lake|creek|estuary|flat ?water/.test(r) ? /river/i : /ocean|sea\b|surf|bay|beach|coast|ski/.test(r) ? /ocean/i : null;
+      const hit = want && ACTIVITIES.find(a => want.test(a));
+      if (hit) return hit;
+    }
     if (ACTIVITIES.includes(mapped)) return mapped;
     // e.g. "Kayaking" → Paddle → your "Paddle ocean" type
     const family = ACTIVITIES.find(a => a.toLowerCase().startsWith(mapped.toLowerCase())) || ACTIVITIES.find(a => a.toLowerCase().includes(mapped.toLowerCase()));
@@ -769,7 +777,25 @@ table.t td { white-space: nowrap; }
   const starTxt = (n) => "★".repeat(n) + "☆".repeat(5 - n);
   const starsText = (n) => "★".repeat(n) + "☆".repeat(5 - n);
   // ----- weighting -----
-  const DEFAULT_WEIGHTS = { Ride: 0.4, Paddle: 0.7, "Paddle ocean": 0.7, "Paddle river": 0.7, Run: 1, Walk: 0.7, Swim: 3, Gym: 0, Other: 0.5 };
+  const DEFAULT_WEIGHTS = { Ride: 0.4, Paddle: 0.7, "Ocean paddle": 0.7, "River paddle": 0.7, "Paddle ocean": 0.7, "Paddle river": 0.7, Run: 1, Walk: 0.7, Swim: 3, Gym: 0, Other: 0.5 };
+  // Build 25: make sure the list has an ocean paddle and a river paddle in different colours, once.
+  // Plain Paddle is hidden, not deleted, so its sessions still show and count.
+  function maybeSplitPaddle(doc) {
+    if (!doc || doc.paddleSplit || ui.paddleSplitting || !canWrite || !me || !db) return;
+    ui.paddleSplitting = true;
+    const next = TYPES.map(t => ({ ...t }));
+    let ocean = next.find(t => /ocean/i.test(t.name)), river = next.find(t => /river/i.test(t.name));
+    const add = [];
+    if (!ocean) { ocean = { name: "Ocean paddle", color: "paddle" }; add.push(ocean); }
+    if (!river) { river = { name: "River paddle", color: "river" }; add.push(river); }
+    if (next.concat(add).some(t => t !== river && t.color === river.color)) river.color = ocean.color === "river" ? "paddle" : "river";
+    const pIdx = next.findIndex(t => t.name === "Paddle");
+    if (add.length) next.splice(pIdx >= 0 ? pIdx + 1 : next.length, 0, ...add);
+    if (pIdx >= 0 && add.length === 2) next[pIdx].hidden = true;
+    const w = { ...(doc.weights || {}) }, base = typeof w.Paddle === "number" ? w.Paddle : DEFAULT_WEIGHTS.Paddle;
+    for (const t of [ocean, river]) if (typeof w[t.name] !== "number") w[t.name] = base;
+    saveSettings({ types: next, weights: w, paddleSplit: true }).catch(() => {});
+  }
   const CONDS = [{ k: "calm", l: "Calm" }, { k: "windy", l: "Windy" }, { k: "verywindy", l: "Very windy" }, { k: "custom", l: "Custom" }];
   const DEFAULT_COND = { windy: 1.2, verywindy: 1.4 };
   const DEFAULT_TIMEKM = 2; // goal km per 30 min for sessions with no distance
@@ -894,6 +920,7 @@ table.t td { white-space: nowrap; }
     const myDocNow = me && members.get(me) ? members.get(me).doc : null;
     TYPES = readTypes(myDocNow); ACTIVITIES = TYPES.map(t => t.name);
     SET = readSettings(myDocNow);
+    maybeSplitPaddle(myDocNow);
     const main = $("main"); main.textContent = "";
     if (!db) { main.append(h("div", { class: "card" }, h("div", { class: "empty" }, $("status").textContent))); return; }
     ({ log: viewLog, stats: viewStats, days: viewDays, goals: viewGoals, import: viewImport })[view](main);
@@ -904,7 +931,7 @@ table.t td { white-space: nowrap; }
 
   // ----- "still to go" card: once a day when the app opens -----
   const NUDGE_KEY = "et-nudge-day";
-  const VERB = { Ride: "riding", Paddle: "paddling", "Paddle ocean": "ocean paddling", "Paddle river": "river paddling", Run: "running", Walk: "walking", Swim: "swimming" };
+  const VERB = { Ride: "riding", Paddle: "paddling", "Paddle ocean": "ocean paddling", "Paddle river": "river paddling", "Ocean paddle": "ocean paddling", "River paddle": "river paddling", Run: "running", Walk: "walking", Swim: "swimming" };
   function nudgeSuggestions(left, g, list) {
     if (g.metric !== "wkm" && g.metric !== "km") return [];
     const used = new Map(); for (const s of list) used.set(s.activity, (used.get(s.activity) || 0) + 1);
@@ -1165,7 +1192,7 @@ table.t td { white-space: nowrap; }
     playCheer();
   }
   // ----- picture summary (PNG) to share or save -----
-  const PIC_COLORS = { ride: "#0072b2", paddle: "#56b4e9", run: "#e69f00", walk: "#7a4a1e", swim: "#f0e442", gym: "#cc79a7", other: "#9e9e9e", olive: "#000000" };
+  const PIC_COLORS = { ride: "#0072b2", paddle: "#56b4e9", river: "#9b6fd0", run: "#e69f00", walk: "#7a4a1e", swim: "#f0e442", gym: "#cc79a7", other: "#9e9e9e", olive: "#000000" };
   const picCol = (a) => PIC_COLORS[colorKey(a)] || "#9e9e9e";
   function picPeriod(kind, t) {
     if (kind === "lastweek") { const ws = addDays(weekStart(t), -7); return { from: ws, to: addDays(ws, 6), label: "Last week", isWeek: true }; }
