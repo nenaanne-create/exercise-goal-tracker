@@ -343,10 +343,9 @@ a.btn { text-decoration: none; display: inline-block; }
 .bdg.none { background: var(--soft); color: var(--muted); }
 button.bdg { border: 0; cursor: pointer; min-height: 32px; }
 button.bdg .i { font-size: 0.875rem; opacity: .75; }
-.rulebox { text-align: left; align-items: stretch; max-height: 90vh; overflow: auto; }
-.rulebox h2 { font: 700 1.5rem/1.1 var(--f-display); text-transform: uppercase; letter-spacing: .02em; margin: 0; text-align: center; }
-.rulebox ul { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 6px; font-size: 0.9375rem; }
-.rulebox .streakb, .rulebox .btn.big { align-self: center; }
+.rulebox ul { align-self: stretch; text-align: left; margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 6px; font-size: 0.9375rem; }
+.medal.dim { filter: grayscale(1) opacity(.55); animation: none; }
+.streakb.none { background: var(--soft); color: var(--muted); box-shadow: none; }
 .recent { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
 .rday { display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 0.8125rem; color: var(--muted); font-weight: 600; }
 .pill { display: inline-flex; align-items: center; justify-content: center; gap: 4px; border-radius: 999px; padding: 2px 9px; font-size: 0.8125rem; font-weight: 600; white-space: nowrap; }
@@ -430,7 +429,7 @@ nav.tabs a[aria-current="page"], .dstate.ok, .wday.hit .wval, .ctitle, .cstats b
     <div>
       <h1>Exercise Tracker</h1>
       <div class="status" id="status">Connecting…</div>
-      <div class="status build" id="build">Build 27 · 28 Nov 2026 · Copyright © 2026 Nena Sorensen &amp; Andrew Sorensen. All rights reserved.</div>
+      <div class="status build" id="build">Build 28 · 28 Nov 2026 · Copyright © 2026 Nena Sorensen &amp; Andrew Sorensen. All rights reserved.</div>
     </div>
     <nav class="tabs" aria-label="Sections">
       <a href="#log" data-view="log">Log</a>
@@ -2959,40 +2958,38 @@ nav.tabs a[aria-current="page"], .dstate.ok, .wday.hit .wval, .ctitle, .cstats b
   const distLabel = (kind, start) => kind === "week"
     ? `Week of ${parseYmd(start).toLocaleDateString("en-AU", { day: "numeric", month: "short" })}`
     : parseYmd(start).toLocaleDateString("en-AU", { month: "long", year: "numeric" });
-  // tap a badge chip to see the rule for earning that badge
+  // tap a badge chip to see the rule for earning that badge (styled like the badge celebration)
   function showBadgeRule(kind) {
     document.querySelectorAll(".celebrate").forEach(x => x.remove());
-    const t = today(); let title, n, rules;
+    const t = today(); let title, n, goal, rules, col, icon;
     if (kind === "streak") {
-      n = dayLog(t).badges; title = "🏆 7 Day Streak badge";
+      n = dayLog(t).badges; title = "7 Day Streak"; col = "--a-run"; icon = "🏆";
+      goal = "Keep all 7 days, Monday to Sunday";
       rules = [
-        "Keep all 7 days of one week, Monday to Sunday.",
-        "A day is kept when you log a session, or log an excused day (sick or injured, work, family or travel).",
-        `Up to ${EX_LIMIT} excused days count in any 7 days. Any more count as skipped.`,
-        `Excused days can be logged for today or up to ${EX_BACKFILL} days back.`,
-        "A day with nothing logged is skipped and puts that week's badge out of reach.",
-        "The streak resets every Monday, so each week is a fresh chance. One badge per week."];
+        "A day counts when you log a session or an excused day.",
+        `Up to ${EX_LIMIT} excused days in any 7 days, logged up to ${EX_BACKFILL} days back.`,
+        "A day with nothing logged is skipped. The streak resets every Monday."];
     } else {
       const g = distGoal(kind), wk = kind === "week", per = wk ? "week" : "month";
-      n = distEarned(kind).length; title = `🏅 ${wk ? "Weekly" : "Monthly"} distance badge`;
-      rules = g ? [
-        `Reach your ${wk ? "weekly" : "monthly"} goal: ${metricFmt(g.target, g.metric)}${g.activity === "All" ? " across all activities" : " of " + g.activity}.`,
-        wk ? "The week runs Monday to Sunday." : "The month is the calendar month.",
-        `Distance adds up across the whole ${per}, so a missed day can be made up later.`,
-        ...(g.metric === "wkm" ? [`Goal km = actual km × activity weight × conditions (Windy ×${SET.cond.windy}, Very windy ×${SET.cond.verywindy}). Weights are in Settings.`, `Sessions with only a time count ${SET.timeKm} goal km per 30 minutes.`] : []),
-        `One badge per ${per}. Badges you've earned are kept, even if you change the goal.`]
-      : [`Set a ${wk ? "weekly" : "monthly"} goal measured in distance or goal km in Settings to start earning this badge.`,
-        `Then reach it within one ${wk ? "week (Monday to Sunday)" : "calendar month"}. Distance adds up, so a missed day can be made up.`];
+      n = distEarned(kind).length; title = `${wk ? "Weekly" : "Monthly"} distance`; col = wk ? "--a-ride" : "--a-walk"; icon = "🏅";
+      goal = g ? `Reach ${metricFmt(g.target, g.metric)}${g.activity === "All" ? "" : " of " + g.activity} ${wk ? "Monday to Sunday" : "in a calendar month"}`
+        : `Set a ${wk ? "weekly" : "monthly"} goal in distance or goal km in Settings to start`;
+      rules = [
+        `Distance adds up across the ${per}, so a missed day can be made up.`,
+        ...(g && g.metric === "wkm" ? ["Goal km = km × activity weight × conditions (see Settings)."] : []),
+        `One badge per ${per}. Earned badges are kept if you change the goal.`];
     }
     const prevFocus = document.activeElement;
     const close = () => { ov.remove(); document.removeEventListener("keydown", onKey); try { prevFocus && prevFocus.focus && prevFocus.focus(); } catch {} };
     const onKey = (e) => { if (e.key === "Escape") close(); };
     const ok = h("button", { class: "btn primary big", type: "button", onclick: close }, "Got it");
+    const medal = medalSVG(cssVar(col) || "#2563eb"); if (!n) medal.classList.add("dim");
     const box = h("div", { class: "cbox rulebox", role: "dialog", "aria-modal": "true", "aria-labelledby": "rule-title", onclick: (e) => e.stopPropagation() },
-      h("h2", { id: "rule-title" }, title),
-      h("div", { class: "lbl" }, "How to earn it"),
+      medal,
+      h("h2", { id: "rule-title", class: "ctitle", style: `color:var(${col})` }, title),
+      h("p", { class: "cline" }, goal),
       h("ul", null, rules.map(r => h("li", null, r))),
-      h("div", { class: "streakb" + (n ? " gold" : "") }, n ? `You've earned ${n}` : "Not earned yet"),
+      h("div", { class: "streakb" + (n ? " gold" : " none") }, n ? `${icon} Badge ×${n}` : "Not earned yet"),
       ok);
     const ov = h("div", { class: "celebrate", onclick: close }, box);
     document.body.append(ov);
