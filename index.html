@@ -13,8 +13,8 @@
 :root {
   --bg: #eef1f2;
   --surface: #ffffff;
-  --ink: #17212b;
-  --muted: #5b6874;
+  --ink: #000000;
+  --muted: #000000;
   --line: #d6dde2;
   --accent: #0b6e8a;
   --accent-ink: #ffffff;
@@ -41,7 +41,7 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --a-river: #c7a6f0;
-    --bg: #11171c; --surface: #19222a; --ink: #e5ebef; --muted: #98a6b1; --line: #2b3741;
+    --bg: #11171c; --surface: #19222a; --ink: #e5ebef; --muted: #e5ebef; --line: #2b3741;
     --accent: #45b4d3; --accent-ink: #0a1418; --soft: #1f2c35; --good: #7cb7ff; --bad: #ff9d5c;
     --a-ride: #4a90e2; --a-paddle: #9ad7fa; --a-run: #f5a623; --a-walk: #b07a45; --a-swim: #f7ec6e; --a-gym: #e7a3c8; --a-other: #a8a8a8; --a-amber: #facc15; --a-olive: #f3f4f6; --goal: #ff8a3d;
     --shadow: 0 1px 2px rgba(0,0,0,.45);
@@ -50,7 +50,7 @@
 }
 :root[data-theme="dark"] {
   --a-river: #c7a6f0;
-  --bg: #11171c; --surface: #19222a; --ink: #e5ebef; --muted: #98a6b1; --line: #2b3741;
+  --bg: #11171c; --surface: #19222a; --ink: #e5ebef; --muted: #e5ebef; --line: #2b3741;
   --accent: #45b4d3; --accent-ink: #0a1418; --soft: #1f2c35; --good: #7cb7ff; --bad: #ff9d5c;
   --a-ride: #4a90e2; --a-paddle: #9ad7fa; --a-run: #f5a623; --a-walk: #b07a45; --a-swim: #f7ec6e; --a-gym: #e7a3c8; --a-other: #a8a8a8; --a-amber: #facc15; --a-olive: #f3f4f6; --goal: #ff8a3d;
   --shadow: 0 1px 2px rgba(0,0,0,.45);
@@ -407,6 +407,11 @@ html { font-size: 100%; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; 
 @media (max-width: 620px) { nav.tabs a { min-width: 0; line-height: 1.15; } }
 table.t td { white-space: nowrap; }
 @media (max-width: 480px) { table.t th, table.t td { padding-left: 4px; padding-right: 4px; } table.t th { letter-spacing: 0; } }
+/* Build 26: all text is dark black. Only warnings keep their colour (errors, duplicates, skipped days, delete buttons, behind pace). */
+nav.tabs a[aria-current="page"], .dstate.ok, .wday.hit .wval, .ctitle, .cstats b.plus, .basis b, .wtag, .goal.done .num, .cond,
+.s7msg.paused, .st-exercised, .st-excused, .skres.won, .rpace.ok, .streakb, .streakb.gold, .s7dots span.next, .s7dots span.on, .s7dots span.on.gold,
+.bdg, .rtitle, .rstep.on b, .rstep.on i, a:not(.btn) { color: var(--ink) !important; }
+.rtitle { text-shadow: none; }
 </style>
 <script>
 /* Text size (Normal / Large / Extra large), saved on this device. Runs before the page draws. */
@@ -419,7 +424,7 @@ table.t td { white-space: nowrap; }
     <div>
       <h1>Exercise Tracker</h1>
       <div class="status" id="status">Connecting…</div>
-      <div class="status build" id="build">Build 25 · 28 Nov 2026 · Copyright © 2026 Nena Sorensen &amp; Andrew Sorensen. All rights reserved.</div>
+      <div class="status build" id="build">Build 26 · 28 Nov 2026 · Copyright © 2026 Nena Sorensen &amp; Andrew Sorensen. All rights reserved.</div>
     </div>
     <nav class="tabs" aria-label="Sections">
       <a href="#log" data-view="log">Log</a>
@@ -1208,7 +1213,7 @@ table.t td { white-space: nowrap; }
     const W = 1080, H = 1350, c = document.createElement("canvas"); c.width = W; c.height = H;
     const x = c.getContext("2d"); if (!x) throw new Error("no canvas");
     const DISP = "'Barlow Condensed', 'Arial Narrow', sans-serif", BODY = "'Barlow', 'Segoe UI', system-ui, sans-serif";
-    const INK = "#17212b", MUTED = "#5b6874", SOFT = "#e3ecef", GOOD = "#1a5fb4";
+    const INK = "#000000", MUTED = "#000000", SOFT = "#e3ecef", GOOD = "#1a5fb4";
     const font = (w, px, fam) => { x.font = `${w} ${px}px ${fam || BODY}`; };
     const rr = (X, Y, w, hh, r) => { x.beginPath(); x.moveTo(X + r, Y); x.arcTo(X + w, Y, X + w, Y + hh, r); x.arcTo(X + w, Y + hh, X, Y + hh, r); x.arcTo(X, Y + hh, X, Y, r); x.arcTo(X, Y, X + w, Y, r); x.closePath(); };
     // background
