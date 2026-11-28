@@ -31,6 +31,7 @@
   --a-other: #9e9e9e;
   --a-amber: #ca8a04;
   --a-olive: #000000;
+  --goal: #ff6d00;
   --shadow: 0 1px 2px rgba(15,30,40,.07), 0 3px 10px rgba(15,30,40,.05);
   --f-display: "Barlow Condensed", "Arial Narrow", sans-serif;
   --f-body: "Barlow", "Segoe UI", system-ui, sans-serif;
@@ -40,7 +41,7 @@
   :root:not([data-theme="light"]) {
     --bg: #11171c; --surface: #19222a; --ink: #e5ebef; --muted: #98a6b1; --line: #2b3741;
     --accent: #45b4d3; --accent-ink: #0a1418; --soft: #1f2c35; --good: #7cb7ff; --bad: #ff9d5c;
-    --a-ride: #4a90e2; --a-paddle: #9ad7fa; --a-run: #f5a623; --a-walk: #b07a45; --a-swim: #f7ec6e; --a-gym: #e7a3c8; --a-other: #a8a8a8; --a-amber: #facc15; --a-olive: #f3f4f6;
+    --a-ride: #4a90e2; --a-paddle: #9ad7fa; --a-run: #f5a623; --a-walk: #b07a45; --a-swim: #f7ec6e; --a-gym: #e7a3c8; --a-other: #a8a8a8; --a-amber: #facc15; --a-olive: #f3f4f6; --goal: #ff8a3d;
     --shadow: 0 1px 2px rgba(0,0,0,.45);
     color-scheme: dark;
   }
@@ -48,7 +49,7 @@
 :root[data-theme="dark"] {
   --bg: #11171c; --surface: #19222a; --ink: #e5ebef; --muted: #98a6b1; --line: #2b3741;
   --accent: #45b4d3; --accent-ink: #0a1418; --soft: #1f2c35; --good: #7cb7ff; --bad: #ff9d5c;
-  --a-ride: #4a90e2; --a-paddle: #9ad7fa; --a-run: #f5a623; --a-walk: #b07a45; --a-swim: #f7ec6e; --a-gym: #e7a3c8; --a-other: #a8a8a8; --a-amber: #facc15; --a-olive: #f3f4f6;
+  --a-ride: #4a90e2; --a-paddle: #9ad7fa; --a-run: #f5a623; --a-walk: #b07a45; --a-swim: #f7ec6e; --a-gym: #e7a3c8; --a-other: #a8a8a8; --a-amber: #facc15; --a-olive: #f3f4f6; --goal: #ff8a3d;
   --shadow: 0 1px 2px rgba(0,0,0,.45);
   color-scheme: dark;
 }
@@ -194,12 +195,12 @@ table.t tr.me td { background: var(--soft); }
 .pbar { position: absolute; bottom: 0; width: 13px; border-radius: 3px 3px 0 0; }
 .pbar.pact { left: 2px; background: var(--a-other); display: flex; flex-direction: column-reverse; overflow: hidden; }
 .pbar.pact > span { flex: none; width: 100%; }
-.pbar.pwgt { right: 2px; background: var(--good); background-image: repeating-linear-gradient(135deg, rgba(255,255,255,.28) 0 3px, transparent 3px 7px); box-shadow: inset 0 0 0 1px rgba(0,0,0,.12); }
+.pbar.pwgt { right: 2px; background: var(--goal); background-image: repeating-linear-gradient(135deg, rgba(255,255,255,.28) 0 3px, transparent 3px 7px); box-shadow: inset 0 0 0 1px rgba(0,0,0,.12); }
 .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 0.8125rem; color: var(--muted); }
 .legend span { display: inline-flex; align-items: center; gap: 6px; }
 .sw2 { display: inline-block; width: 12px; height: 10px; border-radius: 2px; }
 .sw2.sact { background: linear-gradient(var(--a-ride) 0 50%, var(--a-paddle) 50%); }
-.sw2.swgt { background: var(--good); background-image: repeating-linear-gradient(135deg, rgba(255,255,255,.35) 0 2px, transparent 2px 5px); }
+.sw2.swgt { background: var(--goal); background-image: repeating-linear-gradient(135deg, rgba(255,255,255,.35) 0 2px, transparent 2px 5px); }
 .sw2.line { height: 0; border-top: 2px dashed var(--ink); width: 14px; border-radius: 0; }
 .tmark { position: absolute; left: -2px; right: -2px; height: 0; border-top: 2px dashed var(--ink); opacity: .7; }
 .seg.wrap { display: flex; flex-wrap: wrap; }
@@ -415,7 +416,7 @@ table.t td { white-space: nowrap; }
     <div>
       <h1>Exercise Tracker</h1>
       <div class="status" id="status">Connecting…</div>
-      <div class="status build" id="build">Build 23 · 28 Nov 2026 · Copyright © 2026 Nena Sorensen &amp; Andrew Sorensen. All rights reserved.</div>
+      <div class="status build" id="build">Build 24 · 28 Nov 2026 · Copyright © 2026 Nena Sorensen &amp; Andrew Sorensen. All rights reserved.</div>
     </div>
     <nav class="tabs" aria-label="Sections">
       <a href="#log" data-view="log">Log</a>
@@ -1197,7 +1198,7 @@ table.t td { white-space: nowrap; }
     const val = goal ? metricVal(totals(list, P.from, P.to, goal.activity), goal.metric) : tot.wkm;
     const pct = goal ? Math.min(1, val / goal.target) : 1, done = goal ? val >= goal.target - 1e-9 : false;
     x.lineCap = "round"; x.lineWidth = 30; x.strokeStyle = SOFT; x.beginPath(); x.arc(ringX, ringY, R, 0, Math.PI * 2); x.stroke();
-    if (pct > 0) { x.strokeStyle = done || !goal ? (done ? "#d9a514" : GOOD) : GOOD; x.beginPath(); x.arc(ringX, ringY, R, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(pct, 0.9999)); x.stroke(); }
+    if (pct > 0) { x.strokeStyle = done ? "#d9a514" : "#ff6d00"; x.beginPath(); x.arc(ringX, ringY, R, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(pct, 0.9999)); x.stroke(); }
     x.textAlign = "center"; x.fillStyle = INK; font(700, 92, DISP); x.fillText(fmtKm(val), ringX, ringY + 18);
     font(600, 24); x.fillStyle = MUTED; x.fillText(goal ? `of ${fmtKm(goal.target)} goal km` : "goal km", ringX, ringY + 58);
     x.textAlign = "left";
@@ -2126,7 +2127,7 @@ table.t td { white-space: nowrap; }
     // week strip
     const ws = weekStart(t); const days = []; for (let i = 0; i < 7; i++) days.push(addDays(ws, i));
     const vals = days.map(d => (d > t ? null : dayVal(list, d, g)));
-    const pair = g.metric === "wkm"; // show actual km (by activity) beside weighted goal km (blue, striped)
+    const pair = g.metric === "wkm"; // show actual km (by activity) beside weighted goal km (bright orange, striped)
     const actuals = days.map(d => (d > t ? null : totals(list, d, d, g.activity).km));
     const wScale = niceCeil(Math.max(50, g.target, ...vals.filter(x => x != null), ...(pair ? actuals.filter(x => x != null) : [])) || 1);
     const strip = h("div", { class: "week", role: "group", "aria-label": "This week" });
