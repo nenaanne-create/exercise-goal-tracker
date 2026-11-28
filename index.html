@@ -429,7 +429,7 @@ nav.tabs a[aria-current="page"], .dstate.ok, .wday.hit .wval, .ctitle, .cstats b
     <div>
       <h1>Exercise Tracker</h1>
       <div class="status" id="status">Connecting…</div>
-      <div class="status build" id="build">Build 28 · 28 Nov 2026 · Copyright © 2026 Nena Sorensen &amp; Andrew Sorensen. All rights reserved.</div>
+      <div class="status build" id="build">Build 29 · 28 Nov 2026 · Copyright © 2026 Nena Sorensen &amp; Andrew Sorensen. All rights reserved.</div>
     </div>
     <nav class="tabs" aria-label="Sections">
       <a href="#log" data-view="log">Log</a>
@@ -1432,13 +1432,19 @@ nav.tabs a[aria-current="page"], .dstate.ok, .wday.hit .wval, .ctitle, .cstats b
     let text; try { text = await file.text(); } catch { backupFail(`Couldn't read ${file.name}.`); return; }
     return readBackupText(text, file.name);
   }
-  async function readBackupText(text, fileName) {
+  async function readBackupText(text, fileName, preset) {
     ui.restore = null; backupNote("");
     if (!myDataLoaded()) {
       backupNote("Reading the backup…"); render();
       if (!(await waitForMyData(15000))) { backupFail("Your current data hasn't loaded yet, so the app can't check for duplicates. Check your connection, then choose the backup file again."); return; }
     }
-    let data; try { data = JSON.parse(String(text).trim().replace(/^﻿/, "")); } catch { backupFail(`${fileName} isn't a valid backup (it couldn't be read as JSON).`); return; }
+    let data = preset || null;
+    if (!data && !/^\s*[\[{]/.test(String(text).replace(/^\uFEFF/, ""))) {
+      const c = readAppCSV(text);
+      if (!c) { backupFail(`${fileName} isn't an Exercise Tracker backup or CSV export.`); return; }
+      data = csvBackup([c]);
+    }
+    if (!data) try { data = JSON.parse(String(text).trim().replace(/^﻿/, "")); } catch { backupFail(`${fileName} isn't a valid backup (it couldn't be read as JSON).`); return; }
     if (data && data.app === "exercise-tracker" && data.data && typeof data.data === "object") data = fromStoreDump(data);
     if (!data || data.app !== BACKUP_APP || !Array.isArray(data.sessions)) { backupFail(`${fileName} isn't an Exercise Tracker backup.`); return; }
     if (typeof data.version === "number" && data.version > BACKUP_VER) { backupFail("This backup was made by a newer version of the app."); return; }
@@ -1450,7 +1456,7 @@ nav.tabs a[aria-current="page"], .dstate.ok, .wday.hit .wval, .ctitle, .cstats b
     const freshDays = days.filter(d => !myDays().has(d.date));
     const settings = data.settings && typeof data.settings === "object" ? data.settings : {};
     const hasSettings = SETTING_KEYS.some(k => settings[k] !== undefined);
-    ui.restore = { fileName, exportedAt: data.exportedAt, total: sessions.length, sessions: fresh, skipped: sessions.length - fresh.length,
+    ui.restore = { csv: !!data.csv, csvBad: data.csvBad || 0, fileName, exportedAt: data.exportedAt, total: sessions.length, sessions: fresh, skipped: sessions.length - fresh.length,
       days: freshDays, daysSkipped: days.length - freshDays.length, settings, hasSettings, useSettings: hasSettings, busy: false };
     const R0 = ui.restore;
     if (!R0.sessions.length && !R0.days.length) {
@@ -1496,6 +1502,112 @@ nav.tabs a[aria-current="page"], .dstate.ok, .wday.hit .wval, .ctitle, .cstats b
       writeFailed(e); render();
     }
   }
+  // ---------- CSV export & import: two files, one for sessions and one for excused days ----------
+  // Goals and settings stay in the JSON backup. Each CSV is recognised by its header row, not its file name.
+  const CSV_SESS_COLS = ["Date", "Activity", "Distance (km)", "Time (minutes)", "Conditions", "Wind multiplier", "Stars", "Notes", "Source", "Created at"];
+  const CSV_DAY_COLS = ["Date", "Status", "Reason", "Note", "Logged at"];
+  function csvCell(v) {
+    let s = v == null ? "" : String(v);
+    if (/^[=+\-@\t\r]/.test(s) && !/^-?\d+(\.\d+)?$/.test(s)) s = "'" + s; // stops Excel treating text as a formula
+    return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  }
+  const csvText = (cols, rows) => "﻿" + [cols, ...rows].map(r => r.map(csvCell).join(",")).join("\r\n") + "\r\n";
+  const csvTime = (ms) => (typeof ms === "number" && ms > 0 ? new Date(ms).toISOString() : "");
+  const csvReasons = () => (typeof ALL_REASONS !== "undefined" ? ALL_REASONS : []);
+  function sessionsCSV() {
+    const rows = [...mine().values()].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : (a.createdAt || 0) - (b.createdAt || 0)))
+      .map(s => [s.date, s.activity, s.km != null ? s.km : "", s.min != null ? Math.round(s.min * 10) / 10 : "",
+        (CONDS.find(c => c.k === s.cond) || CONDS[0]).l, s.cond === "custom" ? s.mult : "", s.stars || s.rating || "", s.notes || "", s.source || "manual", csvTime(s.createdAt)]);
+    return csvText(CSV_SESS_COLS, rows);
+  }
+  function daysCSV() {
+    const rows = [...myDays().values()].sort((a, b) => (a.date < b.date ? -1 : 1))
+      .map(d => [d.date, "Excused", (csvReasons().find(r => r.k === d.reason) || { l: d.reason || "Other" }).l, d.note || "", csvTime(d.loggedAt)]);
+    return csvText(CSV_DAY_COLS, rows);
+  }
+  async function saveTextFile(name, text, type, btn) {
+    const blob = new Blob([text], { type });
+    const dl = await getDownloads();
+    if (!dl) {
+      try {
+        const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name;
+        document.body.append(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+        backupNote(`Downloaded ${name}. It opens in Excel or Google Sheets.`, "ok");
+      } catch { backupNote("Couldn't create the file here.", "err"); }
+      render(); return;
+    }
+    if (btn) btn.disabled = true;
+    try { await dl.save({ filename: name, data: blob }); backupNote(`Saved ${name}. It opens in Excel or Google Sheets.`, "ok"); }
+    catch (e) {
+      const c = e && e.code;
+      backupNote(c === "declined" ? "File not saved." : c === "rate_limited" ? "A save prompt is already open. Try again in a moment." : "Couldn't save the file here.", "");
+      if (c === "unavailable" || c === "not_granted" || c === "capability_disabled" || c === "capability_removed") downloadsApi = null;
+    }
+    render();
+  }
+  const downloadSessionsCSV = (btn) => saveTextFile(`exercise-tracker-sessions-${today()}.csv`, sessionsCSV(), "text/csv", btn);
+  const downloadDaysCSV = (btn) => saveTextFile(`exercise-tracker-excused-days-${today()}.csv`, daysCSV(), "text/csv", btn);
+  /* Read one of this app's CSV exports. Returns null if the header row isn't one of ours, else
+     {kind: "sessions"|"days", sessions: [...], days: [...], bad: rows that couldn't be read}. */
+  function readAppCSV(text) {
+    const all = window.ET.parseCSV(String(text).replace(/^﻿/, ""));
+    if (!all.length) return null;
+    const head = all[0].map(x => x.trim().toLowerCase());
+    const has = (re) => head.some(x => re.test(x));
+    const kind = has(/^date$/) && has(/^activity$/) ? "sessions" : has(/^date$/) && has(/^reason$/) ? "days" : null;
+    if (!kind) return null;
+    const col = (re) => head.findIndex(x => re.test(x));
+    const get = (r, i) => (i >= 0 && r[i] != null ? String(r[i]).trim() : "");
+    const unq = (s) => (/^'[=+\-@\t\r]/.test(s) ? s.slice(1) : s);
+    const numOr = (s) => { if (s === "") return null; const n = parseFloat(s.replace(/,/g, "")); return isFinite(n) ? n : NaN; };
+    const when = (s) => { const p = Date.parse(s); return isNaN(p) ? 0 : p; };
+    // Excel in Australia re-saves dates as day/month/year
+    const date = (s) => { const d = parseDateLoose(s, "dmy"); return d && isYmd(d) ? d : null; };
+    const out = { kind, sessions: [], days: [], bad: 0 };
+    if (kind === "sessions") {
+      const iD = col(/^date$/), iA = col(/^activity$/), iK = col(/^distance/), iT = col(/^time/), iC = col(/^conditions?$/), iM = col(/multiplier/),
+        iS = col(/^(stars?|rating)$/), iN = col(/^notes?$/), iSrc = col(/^source$/), iCr = col(/^created/);
+      for (const r of all.slice(1)) {
+        const d = date(get(r, iD)), act = cleanTypeName(get(r, iA));
+        let km = numOr(get(r, iK)); const tRaw = get(r, iT);
+        let min = tRaw === "" ? null : /:/.test(tRaw) ? parseDuration(tRaw) : numOr(tRaw);
+        if (km === 0) km = null; if (min === 0) min = null;
+        if (!d || !act || Number.isNaN(km) || Number.isNaN(min) || (km != null && km < 0) || (min != null && min < 0) || (km == null && min == null)) { out.bad++; continue; }
+        const c = get(r, iC).toLowerCase().replace(/[\s_-]/g, "");
+        const cond = c === "verywindy" ? "verywindy" : c === "windy" ? "windy" : c === "custom" ? "custom" : "calm";
+        const mult = numOr(get(r, iM)), st = parseInt(get(r, iS), 10);
+        out.sessions.push({ date: d, activity: act, km, min, cond, mult: cond === "custom" && mult >= 0.1 && mult <= 5 ? mult : 1, stars: st >= 1 && st <= 5 ? st : null,
+          notes: unq(get(r, iN)).slice(0, 500), source: get(r, iSrc).toLowerCase() === "import" ? "import" : "manual", createdAt: when(get(r, iCr)) || Date.now() });
+      }
+    } else {
+      const iD = col(/^date$/), iSt = col(/^status$/), iR = col(/^reason$/), iN = col(/^notes?$/), iL = col(/^logged/);
+      for (const r of all.slice(1)) {
+        const d = date(get(r, iD)), st = get(r, iSt).toLowerCase();
+        if (!d || (st && st !== "excused")) { out.bad++; continue; }
+        const rr = get(r, iR).toLowerCase();
+        const reason = (csvReasons().find(x => x.k === rr || x.l.toLowerCase() === rr || x.l.toLowerCase().split(/\s*\/\s*/).includes(rr)) || { k: "other" }).k;
+        out.days.push({ date: d, reason, note: unq(get(r, iN)).slice(0, 300), loggedAt: when(get(r, iL)) || Date.now() });
+      }
+    }
+    return out;
+  }
+  // one or two CSV files → the same shape as a JSON backup, so the normal restore flow checks and adds it
+  function csvBackup(parts) {
+    return { app: BACKUP_APP, version: 1, csv: true, settings: {}, csvBad: parts.reduce((n, p) => n + p.bad, 0),
+      sessions: parts.flatMap(p => p.sessions), days: parts.flatMap(p => p.days) };
+  }
+  async function readBackupFiles(files) {
+    if (files.length === 1) return readBackupFile(files[0]);
+    const parts = [], fileNames = [];
+    for (const file of files.slice(0, 4)) {
+      if (file.size > 20 * 1024 * 1024) { backupFail(`${file.name} is too large.`); return; }
+      let text; try { text = await file.text(); } catch { backupFail(`Couldn't read ${file.name}.`); return; }
+      const c = readAppCSV(text);
+      if (!c) { backupFail(`${file.name} isn't one of this app's CSV files. To restore a JSON backup, choose it on its own.`); return; }
+      parts.push(c); fileNames.push(file.name);
+    }
+    return readBackupText("", fileNames.join(" + "), csvBackup(parts));
+  }
   function backupCard() {
     const card = h("div", { class: "card", id: "backup-card" }, h("h2", null, "Backup & restore"),
       h("p", { style: "margin:0" }, "Your data is saved only in this browser on this device, and clearing browser data deletes it. Save everything (sessions, excused days, goals, activity types and weighting) to one file now and then. Restoring adds what's missing and skips anything already here. Backups from the claude.ai version work too."));
@@ -1507,9 +1619,16 @@ nav.tabs a[aria-current="page"], .dstate.ok, .wday.hit .wval, .ctitle, .cstats b
       h("button", { class: "btn", type: "button", disabled: !myDataLoaded(), onclick: copyBackup }, "Copy backup text"),
       h("span", { class: "small muted" }, myDataLoaded() ? `${n} session${n === 1 ? "" : "s"}, ${nd} excused day${nd === 1 ? "" : "s"}` : "Loading…"));
     card.append(row);
+    const csvS = h("button", { class: "btn", type: "button", disabled: !myDataLoaded() }, "Download sessions CSV");
+    csvS.addEventListener("click", () => downloadSessionsCSV(csvS));
+    const csvD = h("button", { class: "btn", type: "button", disabled: !myDataLoaded() }, "Download excused days CSV");
+    csvD.addEventListener("click", () => downloadDaysCSV(csvD));
+    card.append(h("div", { class: "lbl" }, "Spreadsheet (CSV)"),
+      h("p", { class: "small muted", style: "margin:0" }, "Two files that open in Excel or Google Sheets: one for sessions, one for excused days. To bring them back in, tap Restore from backup… and pick one or both files. Keep the header row if you edit them. Goals and settings are only in the JSON backup."),
+      h("div", { class: "row" }, csvS, csvD));
     if (canWrite) {
-      const input = h("input", { type: "file", class: "filepick", "aria-label": "Restore from backup file" });
-      input.addEventListener("change", () => { ui.pickWatch && ui.pickWatch(); const f = input.files && input.files[0]; input.value = ""; if (f) readBackupFile(f); });
+      const input = h("input", { type: "file", class: "filepick", multiple: true, "aria-label": "Restore from a backup file or CSV files" });
+      input.addEventListener("change", () => { ui.pickWatch && ui.pickWatch(); const fs = [...(input.files || [])]; input.value = ""; if (fs.length) readBackupFiles(fs); });
       // Some in-app browsers (e.g. the Claude Android app) ignore file pickers. If the page never loses focus, no picker opened.
       input.addEventListener("click", () => {
         // A real picker covers the page (hidden) or ends in change/cancel. If neither happens and the page is still showing, no picker opened.
@@ -1537,9 +1656,10 @@ nav.tabs a[aria-current="page"], .dstate.ok, .wday.hit .wval, .ctitle, .cstats b
     if (R) {
       const when = R.exportedAt && !isNaN(Date.parse(R.exportedAt)) ? new Date(R.exportedAt).toLocaleString("en-AU", { dateStyle: "medium", timeStyle: "short" }) : "unknown date";
       const box = h("div", { class: "notice" },
-        h("b", null, R.fileName), ` (backed up ${when})`, h("br"),
+        h("b", null, R.fileName), R.csv ? " (CSV)" : ` (backed up ${when})`, h("br"),
         `${R.sessions.length} new session${R.sessions.length === 1 ? "" : "s"} to add`, R.skipped ? `, ${R.skipped} already in the app will be skipped` : "", ". ",
-        `${R.days.length} excused day${R.days.length === 1 ? "" : "s"} to add`, R.daysSkipped ? ` (${R.daysSkipped} already here)` : "", ".");
+        `${R.days.length} excused day${R.days.length === 1 ? "" : "s"} to add`, R.daysSkipped ? ` (${R.daysSkipped} already here)` : "", ".",
+        R.csvBad ? ` ${R.csvBad} row${R.csvBad === 1 ? "" : "s"} couldn't be read and will be left out.` : "");
       card.append(box);
       if (R.hasSettings) card.append(h("label", { class: "row small" },
         h("input", { type: "checkbox", checked: R.useSettings, onchange: (e) => { R.useSettings = e.target.checked; } }),
