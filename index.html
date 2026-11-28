@@ -914,7 +914,7 @@ table.t td { white-space: nowrap; }
     return cands.slice(0, 2).map(([a, w]) => { const km = left / w; return `${km >= 10 ? Math.round(km) : fmtKm(km)} km ${VERB[a] || a}`; });
   }
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState !== "visible") return;
+    if (document.visibilityState !== "visible" || ui.sharing) return; // coming back from the share sheet
     ui.nudgeShown = false;        // allow today's reminder if it hasn't been shown yet
     scheduleRender();             // also picks up a new day/week and any celebration due
   });
@@ -1266,9 +1266,8 @@ table.t td { white-space: nowrap; }
       const name = `exercise-${S.kind}-${today()}.png`;
       const share = h("button", { class: "btn primary", type: "button" }, "Share");
       share.addEventListener("click", async () => {
-        try { const f = new File([S.blob], name, { type: "image/png" });
-          if (navigator.canShare && navigator.canShare({ files: [f] })) { await navigator.share({ files: [f], title: "My exercise progress" }); return; } } catch (e) { if (e && e.name === "AbortError") return; }
-        dl.click();
+        const r = await shareBlob(S.blob, name);
+        if (r === "none") dl.click();
       });
       const dl = h("a", { class: "btn", href: S.url, download: name }, "Download");
       card.append(h("img", { src: S.url, alt: "Picture summary of your exercise", class: "picprev" }), h("div", { class: "row" }, share, dl));
@@ -1276,6 +1275,48 @@ table.t td { white-space: nowrap; }
     if (S.err) card.append(h("div", { class: "err" }, S.err));
     return card;
   }
+  // Share sheet first, then download; returns "shared" | "saved" | "cancelled" | "none"
+  async function shareBlob(blob, name) {
+    ui.sharing = true;
+    try {
+      try { const f = new File([blob], name, { type: "image/png" });
+        if (navigator.canShare && navigator.canShare({ files: [f] })) { await navigator.share({ files: [f], title: "My exercise progress" }); return "shared"; } }
+      catch (e) { if (e && e.name === "AbortError") return "cancelled"; }
+      const dl = await getDownloads();
+      if (dl) { try { await dl.save({ filename: name, data: blob }); return "saved"; } catch (e) { if (e && e.code === "declined") return "cancelled"; } }
+      return "none";
+    } finally { setTimeout(() => { ui.sharing = false; }, 1500); }
+  }
+  // Share picture button on the Log tab: makes this week's picture and shares it straight away
+  async function quickShare(btn, kind) {
+    if (!btn || btn.disabled) return;
+    const label = btn.textContent; btn.disabled = true; btn.textContent = "Making picture…";
+    let blob;
+    try { blob = await makeSummaryPng(kind); }
+    catch { btn.disabled = false; btn.textContent = label; toast("Couldn't make the picture on this device.", true); return; }
+    btn.disabled = false; btn.textContent = label;
+    const name = `exercise-${kind}-${today()}.png`;
+    const r = await shareBlob(blob, name);
+    if (r === "saved") toast("✓ Picture saved");
+    else if (r === "none") showPicture(blob, name);
+  }
+  function showPicture(blob, name) {
+    document.querySelectorAll(".celebrate").forEach(n => n.remove());
+    const url = URL.createObjectURL(blob);
+    const close = () => { ov.remove(); document.removeEventListener("keydown", onKey); setTimeout(() => URL.revokeObjectURL(url), 1000); };
+    const onKey = (e) => { if (e.key === "Escape") close(); };
+    const msg = h("p", { class: "small muted", style: "margin:0" }, "Press and hold the picture to save or share it, or tap Download.");
+    const img = h("img", { src: url, alt: "Picture summary of your exercise this week", class: "picprev" });
+    const share = h("button", { class: "btn primary", type: "button" }, "Share");
+    const dl = h("a", { class: "btn", href: url, download: name }, "Download");
+    share.addEventListener("click", async () => { const r = await shareBlob(blob, name); if (r === "shared" || r === "saved") { if (r === "saved") toast("✓ Picture saved"); close(); } else if (r === "none") dl.click(); });
+    const box = h("div", { class: "cbox", role: "dialog", "aria-modal": "true", "aria-label": "Share picture", style: "width:min(420px,100%);max-height:92vh;overflow:auto", onclick: (e) => e.stopPropagation() },
+      img, msg, h("div", { class: "row", style: "justify-content:center" }, share, dl, h("button", { class: "btn", type: "button", onclick: close }, "Close")));
+    const ov = h("div", { class: "celebrate", onclick: close }, box);
+    document.body.append(ov); document.addEventListener("keydown", onKey);
+    setTimeout(() => { try { share.focus(); } catch {} }, 50);
+  }
+
   // ---------- backup & restore (JSON) ----------
   const BACKUP_APP = "exercise-tracker-backup", BACKUP_VER = 1;
   const SETTING_KEYS = ["goals", "types", "weights", "cond", "timeKm", "badge7Seen", "distBadges", "celebrated", "ranks", "dailyDefaulted", "weeklyDefaulted"];
@@ -2186,7 +2227,7 @@ table.t td { white-space: nowrap; }
     card.append(h("div", { class: "row" },
       done ? h("button", { class: "btn gold", type: "button", onclick: () => { unlockAudio(); showCelebration(g, v, list, t); } }, "🏆 See your celebration") : null,
       rankButton(g, v),
-      h("a", { class: "btn", href: "#stats", onclick: () => { (ui.pic || (ui.pic = {})).kind = "week"; setTimeout(() => { const el = document.querySelector(".picprev, .card h2"); const cards = [...document.querySelectorAll(".card h2")].find(x => x.textContent === "Share a picture"); cards && cards.scrollIntoView({ behavior: "smooth" }); }, 120); } }, "📷 Share picture")));
+      h("button", { class: "btn", type: "button", onclick: (e) => quickShare(e.currentTarget, "week") }, "📷 Share picture")));
     return card;
   }
   function weightedParts(list, from, to, g) {
